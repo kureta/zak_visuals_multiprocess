@@ -182,7 +182,7 @@ class Streamer(BaseNode):
             print("Error: ", e)
 
     def task(self):
-        with wait(1 / 30):
+        with wait(1 / FPS):
             try:
                 image = self.image.read()
                 if np.all(image == DONE):
