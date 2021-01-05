@@ -1,26 +1,25 @@
 import ctypes
+import pickle
 import signal
-from cmath import isclose
 from fractions import Fraction
 from multiprocessing import Event, Value, set_start_method
 from time import sleep
 
-import nltk
 import numpy as np
-import torch
 from gstreamer import Gst, GstApp, GstContext, GstPipeline, GstVideo, utils  # noqa
-from pytorch_pretrained_biggan import (BigGAN, one_hot_from_names)
 
+import dnnlib
+import dnnlib.tflib as tflib
 from zak_vision.base_nodes import BaseNode, Edge, wait
 from zak_vision.osc import OSCServer
 
-nltk.data.path.append('/home/kureta/Documents/ML Files/nltk_data')
-
-WIDTH = HEIGHT = 512
+WIDTH = HEIGHT = 1024
 NUM_LABELS = 1000
-DIM_NOISE = 128
-BATCH_SIZE = 12
+DIM_NOISE = 512
+BATCH_SIZE = 8
+NET = 'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada/pretrained/metfaces.pkl'
 # TODO: Queue makes generator stop while it's sending the current batch
+# TODO: Fckn shutdown properly!
 
 DONE = np.ones(1, dtype='uint8') * DIM_NOISE
 
@@ -35,39 +34,29 @@ class Generator(BaseNode):
         super().__init__()
         self.noise = noise
         self.image = image
-
-        self.model = self.class_vector = self.position = None
-        self.truncation = 1.
+        self.buffer = np.zeros((BATCH_SIZE, DIM_NOISE))
 
     def setup(self):
-        self.model = BigGAN.from_pretrained(f'/home/kureta/Documents/repos/personal/zak_vision/biggan-deep-{HEIGHT}')
-        self.position = torch.zeros(BATCH_SIZE, DIM_NOISE).to('cuda')
+        tflib.init_tf()
+        with dnnlib.util.open_url(NET) as fp:
+            _G, _D, self.Gs = pickle.load(fp)
 
-        # Prepare a input
-        class_vector = one_hot_from_names(['tiger'], batch_size=BATCH_SIZE)
+        self.Gs_kwargs = {
+            'output_transform': dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True),
+            'randomize_noise': False
+        }
 
-        # All in tensors
-        class_vector = torch.from_numpy(class_vector)
+        self.noise_vars = [var for name, var in self.Gs.components.synthesis.vars.items() if name.startswith('noise')]
+        tflib.set_vars({var: np.random.randn(*var.shape.as_list()) for var in self.noise_vars})
 
-        # If you have a GPU, put everything on cuda
-        self.class_vector = class_vector.to('cuda')
-        self.model.to('cuda')
+        self.label = np.zeros([BATCH_SIZE] + self.Gs.input_shapes[1][1:])
 
     def task(self):
         for idx in range(BATCH_SIZE):
-            self.position[idx] = self.noise.read()
+            self.buffer[idx] = self.noise.read()
 
-        # Generate an image
-        with torch.no_grad():
-            output = self.model(self.position, self.class_vector, self.truncation)
-
-        output = output.permute(0, 2, 3, 1)
-        output = (output + 1) / 2
-        output *= 255
-        output = torch.clip(output, 0, 255)
-        output = output.cpu().numpy().astype('uint8')
-
-        self.image.write(output)
+        images = self.Gs.run(self.buffer, self.label, **self.Gs_kwargs)
+        self.image.write(images)
 
     def teardown(self):
         self.image.write(DONE)
@@ -89,35 +78,34 @@ class Noise(BaseNode):
         self.acc = None
 
     def setup(self):
-        with torch.no_grad():
-            self.pos: torch.Tensor = torch.randn(DIM_NOISE).to('cuda')
-            self.pos = self.make_unit(self.pos)
-            self.pos *= self.radius.value
+        self.pos = np.random.randn(DIM_NOISE)
+        self.pos = self.make_unit(self.pos)
+        self.pos *= self.radius.value
 
-            self.vel: torch.Tensor = torch.randn(DIM_NOISE).to('cuda')
-            self.vel = self.make_orthogonal_to(self.vel, self.pos)
-            self.vel = self.make_unit(self.vel)
-            self.vel *= self.speed.value
+        self.vel = np.random.randn(DIM_NOISE)
+        self.vel = self.make_orthogonal_to(self.vel, self.pos)
+        self.vel = self.make_unit(self.vel)
+        self.vel *= self.speed.value
 
-            self.acc: torch.Tensor = torch.randn(DIM_NOISE).to('cuda')
-            self.acc = self.make_orthogonal_to(self.acc, self.vel)
-            self.acc = self.make_orthogonal_to(self.acc, self.pos)
-            self.acc = self.make_unit(self.acc)
-            self.acc *= self.force.value
+        self.acc = np.random.randn(DIM_NOISE)
+        self.acc = self.make_orthogonal_to(self.acc, self.vel)
+        self.acc = self.make_orthogonal_to(self.acc, self.pos)
+        self.acc = self.make_unit(self.acc)
+        self.acc *= self.force.value
 
     @staticmethod
-    def make_unit(v: torch.Tensor) -> torch.Tensor:
-        norm = v.norm(p=2)
-        if isclose(norm, 0.):
+    def make_unit(v):
+        norm = np.linalg.norm(v)
+        if np.isclose(norm, 0.):
             return v
         return v / norm
 
-    def make_orthogonal_to(self, v1: torch.Tensor, v2: torch.Tensor) -> torch.Tensor:
-        v_r = torch.dot(v1, v2) * self.make_unit(v2)
+    def make_orthogonal_to(self, v1, v2):
+        v_r = np.dot(v1, v2) * self.make_unit(v2)
         return v1 - v_r
 
     def apply_force(self):
-        self.acc.normal_()
+        self.acc = np.random.randn(*self.acc.shape)
         # self.acc = self.make_orthogonal_to(self.acc, self.vel)
         # self.acc = self.make_orthogonal_to(self.acc, self.pos)
         # self.acc = self.make_unit(self.acc)
@@ -133,8 +121,7 @@ class Noise(BaseNode):
         self.pos *= self.radius.value
 
     def task(self):
-        with torch.no_grad():
-            self.apply_force()
+        self.apply_force()
         self.output.write(self.pos)
 
 

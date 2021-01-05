@@ -1,7 +1,6 @@
+import multiprocessing as mp
 import time
 from contextlib import contextmanager
-
-from torch import multiprocessing as mp
 
 
 @contextmanager

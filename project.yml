@@ -1,69 +1,15 @@
-name: zak-vision
+name: zak-visuals-multiprocess
+
 channels:
-  - defaults
+- conda-forge
+- defaults
+
 dependencies:
-  - _libgcc_mutex=0.1=main
-  - ca-certificates=2020.12.8=h06a4308_0
-  - certifi=2020.12.5=py39h06a4308_0
-  - cudatoolkit=10.2.89=hfd86e86_1
-  - cudnn=7.6.5=cuda10.2_0
-  - ld_impl_linux-64=2.33.1=h53a641e_7
-  - libedit=3.1.20191231=h14c3975_1
-  - libffi=3.3=he6710b0_2
-  - libgcc-ng=9.1.0=hdf63c60_0
-  - libstdcxx-ng=9.1.0=hdf63c60_0
-  - ncurses=6.2=he6710b0_1
-  - openssl=1.1.1i=h27cfd23_0
-  - pip=20.3.3=py39h06a4308_0
-  - python=3.9.0=hdb3f193_2
-  - readline=8.0=h7b6447c_0
-  - setuptools=51.0.0=py39h06a4308_2
-  - sqlite=3.33.0=h62c20be_0
-  - tk=8.6.10=hbc83047_0
-  - tzdata=2020d=h14c3975_0
-  - wheel=0.36.2=pyhd3eb1b0_0
-  - xz=5.2.5=h7b6447c_0
-  - zlib=1.2.11=h7b6447c_3
-  - pip:
-    - attrs==20.3.0
-    - autopep8==1.5.4
-    - boto3==1.16.44
-    - botocore==1.19.44
-    - chardet==4.0.0
-    - click==7.1.2
-    - flake8==3.8.4
-    - gstreamer-python==0.0.3.dev18+gc8d4e04
-    - idna==2.10
-    - iniconfig==1.1.1
-    - jmespath==0.10.0
-    - joblib==1.0.0
-    - mccabe==0.6.1
-    - nltk==3.5
-    - numpy==1.19.4
-    - packaging==20.8
-    - pillow==8.0.1
-    - pluggy==0.13.1
-    - py==1.10.0
-    - py-cpuinfo==7.0.0
-    - pycairo==1.20.0
-    - pycodestyle==2.6.0
-    - pyflakes==2.2.0
-    - pygobject==3.38.0
-    - pyparsing==2.4.7
-    - pytest==6.2.1
-    - pytest-benchmark==3.2.3
-    - python-dateutil==2.8.1
-    - python-osc==1.7.4
-    - pytorch-pretrained-biggan==0.1.1
-    - regex==2020.11.13
-    - requests==2.25.1
-    - s3transfer==0.3.3
-    - scipy==1.5.4
-    - six==1.15.0
-    - toml==0.10.2
-    - torch==1.7.1
-    - torchvision==0.8.2
-    - tqdm==4.55.0
-    - typing-extensions==3.7.4.3
-    - urllib3==1.26.2
-prefix: /home/kureta/.conda/envs/zak-vision
+- python=3.7
+- tensorflow-gpu=1.15
+- cudatoolkit=10.0
+- pip
+- requests
+- pip:
+  - git+https://github.com/jackersson/gstreamer-python.git#egg=gstreamer-python
+  - python-osc
