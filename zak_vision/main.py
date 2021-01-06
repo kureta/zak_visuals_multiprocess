@@ -2,7 +2,7 @@ import ctypes
 import signal
 from multiprocessing import Event, Value, set_start_method
 
-from zak_vision.nodes import Generator, Noise, OSCServer, Streamer
+from zak_vision.nodes import Generator, NoiseGen, OSCServer, Streamer
 from zak_vision.nodes.base_nodes import Edge
 
 config = {
@@ -31,7 +31,7 @@ class App:
 
         self.images = Edge()
         self.noise = Edge()
-        self.noise_gen = Noise(self.noise, params, config)
+        self.noise_gen = NoiseGen(self.noise, params, config)
         self.generator = Generator(self.noise, self.images, config)
         self.streamer = Streamer(self.images, config)
         self.osc = OSCServer(params)

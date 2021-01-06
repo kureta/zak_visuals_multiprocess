@@ -3,7 +3,7 @@ import numpy as np
 from zak_vision.nodes.base_nodes import BaseNode, Edge
 
 
-class Noise(BaseNode):
+class NoiseGen(BaseNode):
     # TODO: do the same thing, but sphere is not centered around the origin
     def __init__(self, output: Edge, params, config):
         super().__init__()
