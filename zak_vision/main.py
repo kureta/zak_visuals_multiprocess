@@ -3,6 +3,7 @@ import pickle
 import signal
 from fractions import Fraction
 from multiprocessing import Event, Value, set_start_method
+from queue import Empty, Full
 from time import sleep
 
 import numpy as np
@@ -18,12 +19,9 @@ NUM_LABELS = 1000
 DIM_NOISE = 512
 BATCH_SIZE = 10
 NET = 'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada/pretrained/metfaces.pkl'
-# TODO: Queue makes generator stop while it's sending the current batch
+
+
 # TODO: Fckn shutdown properly!
-
-DONE = np.ones(1, dtype='uint8') * DIM_NOISE
-
-
 def fraction_to_str(fraction: Fraction) -> str:
     """Converts fraction to str"""
     return '{}/{}'.format(fraction.numerator, fraction.denominator)
@@ -45,24 +43,37 @@ class Generator(BaseNode):
 
         self.Gs_kwargs = {
             'output_transform': dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True),
-            'randomize_noise': False
+            'randomize_noise': False,
+            'truncation_psi': 1.0,
         }
 
         self.noise_vars = [var for name, var in self.Gs.components.synthesis.vars.items() if name.startswith('noise')]
+        # TODO: use this for noise (not latent, actual noise for detail generation)
         tflib.set_vars({var: np.random.randn(*var.shape.as_list()) for var in self.noise_vars})
 
-        self.label = np.zeros([BATCH_SIZE] + self.Gs.input_shapes[1][1:])
+        # TODO: these are for controlling different levels of the image
+        #       use mapping(z) = w and modulate z to change whole image
+        #       can also directly change any w level (there are 18 of them)
+        #       or only change a couple of levels. Go nuts.
+        latent = np.random.randn(DIM_NOISE)
+        self.latents = np.stack(latent for _ in range(BATCH_SIZE))
+        self.dlatents = self.Gs.components.mapping.run(self.latents, None)
 
     def task(self):
         for idx in range(BATCH_SIZE):
-            self.buffer[idx] = self.noise.read()
+            try:
+                self.buffer[idx] = self.noise.read()
+            except Empty:
+                return
 
-        images = self.Gs.run(self.buffer, self.label, **self.Gs_kwargs)
-        self.image.write(images)
-
-    def teardown(self):
-        self.image.write(DONE)
-        self.image.close()
+        # self.dlatents[:, 2] = self.buffer
+        for i in range(18):
+            self.dlatents[:, i] = self.buffer
+        images = self.Gs.components.synthesis.run(self.dlatents, **self.Gs_kwargs)
+        try:
+            self.image.write(images)
+        except Full:
+            return
 
 
 class Noise(BaseNode):
@@ -124,7 +135,10 @@ class Noise(BaseNode):
 
     def task(self):
         self.apply_force()
-        self.output.write(self.pos)
+        try:
+            self.output.write(self.pos)
+        except Full:
+            return
 
 
 VIDEO_FORMAT = "RGB"
@@ -186,9 +200,6 @@ class Streamer(BaseNode):
     def stream_frame(self, image):
         with wait(1 / FPS):
             try:
-                if np.all(image == DONE):
-                    self.exit.set()
-                    return
                 gst_buffer = utils.ndarray_to_gst_buffer(image)
 
                 # set pts and duration to be able to record video, calculate fps
@@ -202,7 +213,10 @@ class Streamer(BaseNode):
                 print("Error: ", e)
 
     def task(self):
-        images = self.image.read()
+        try:
+            images = self.image.read()
+        except Empty:
+            return
         for im in images:
             self.stream_frame(im)
 
@@ -210,10 +224,9 @@ class Streamer(BaseNode):
         # emit <end-of-stream> event
         self.appsrc.emit("end-of-stream")
         while not self.pipeline.is_done:
-            sleep(.1)
+            sleep(.05)
         self.pipeline.shutdown()
         self.context.shutdown()
-        self.image.close()
 
 
 class App:
@@ -256,7 +269,6 @@ class App:
         self.exit_handler()
 
     def exit_handler(self):
-        self.noise_gen.exit.set()
         self.noise_gen.join()
         self.generator.join()
         self.streamer.join()

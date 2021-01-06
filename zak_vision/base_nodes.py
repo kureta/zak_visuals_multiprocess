@@ -24,10 +24,10 @@ class Edge:
         self.__q.close()
 
     def read(self):
-        return self.__q.get()
+        return self.__q.get(block=True, timeout=1/30)
 
     def write(self, value):
-        self.__q.put(value)
+        self.__q.put(value, block=True, timeout=1/30)
 
 
 class BaseNode(mp.Process):
