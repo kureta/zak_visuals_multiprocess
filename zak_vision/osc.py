@@ -1,9 +1,15 @@
 import threading
+from types import FunctionType
 
 from pythonosc import dispatcher, osc_server, udp_client
 
 
 class OSCServer(threading.Thread):
+    on_force: FunctionType
+    on_radius: FunctionType
+    on_speed: FunctionType
+    on_unknown_message: FunctionType
+
     def __init__(self, params: dict):
         print('server start')
         super().__init__()

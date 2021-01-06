@@ -3,7 +3,6 @@ import pickle
 import signal
 from fractions import Fraction
 from multiprocessing import Event, Value, set_start_method
-from queue import Empty, Full
 from time import sleep
 
 import numpy as np
@@ -33,7 +32,7 @@ class Generator(BaseNode):
         self.image = image
         self.buffer = np.zeros((BATCH_SIZE, DIM_NOISE))
 
-        self.Gs = self.Gs_kwargs = self.noise_vars = self.label = None
+        self.Gs = self.Gs_kwargs = self.noise_vars = self.label = self.latents = self.dlatents = None
 
     def setup(self):
         tflib.init_tf()
@@ -50,24 +49,20 @@ class Generator(BaseNode):
         tflib.set_vars({var: np.random.randn(*var.shape.as_list()) for var in self.noise_vars})
 
         latent = np.random.randn(DIM_NOISE)
-        self.latents = np.stack(latent for _ in range(BATCH_SIZE))
+        self.latents = np.stack([latent for _ in range(BATCH_SIZE)])
         self.dlatents = self.Gs.components.mapping.run(self.latents, None)
 
     def task(self):
         for idx in range(BATCH_SIZE):
-            try:
-                self.buffer[idx] = self.noise.read()
-            except Empty:
+            buffer = self.read(self.noise)
+            if buffer is None:
                 return
+            self.buffer[idx] = buffer
 
-        # self.dlatents[:, 2] = self.buffer
         for i in range(self.dlatents.shape[1]):
             self.dlatents[:, i] = self.buffer
         images = self.Gs.components.synthesis.run(self.dlatents, **self.Gs_kwargs)
-        try:
-            self.image.write(images)
-        except Full:
-            return
+        self.write(self.image, images)
 
 
 class Noise(BaseNode):
@@ -129,10 +124,7 @@ class Noise(BaseNode):
 
     def task(self):
         self.apply_force()
-        try:
-            self.output.write(self.pos)
-        except Full:
-            return
+        self.write(self.output, self.pos)
 
 
 VIDEO_FORMAT = "RGB"
@@ -206,9 +198,8 @@ class Streamer(BaseNode):
             print("Error: ", e)
 
     def task(self):
-        try:
-            images = self.image.read()
-        except Empty:
+        images = self.read(self.image)
+        if images is None:
             return
         for im in images:
             self.stream_frame(im)
