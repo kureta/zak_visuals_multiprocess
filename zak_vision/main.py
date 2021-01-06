@@ -17,7 +17,7 @@ from zak_vision.osc import OSCServer
 WIDTH = HEIGHT = 1024
 NUM_LABELS = 1000
 DIM_NOISE = 512
-BATCH_SIZE = 10
+BATCH_SIZE = 1
 NET = 'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada/pretrained/metfaces.pkl'
 
 
