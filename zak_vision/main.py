@@ -16,7 +16,7 @@ from zak_vision.osc import OSCServer
 WIDTH = HEIGHT = 1024
 NUM_LABELS = 1000
 DIM_NOISE = 512
-BATCH_SIZE = 8
+BATCH_SIZE = 10
 NET = 'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada/pretrained/metfaces.pkl'
 # TODO: Queue makes generator stop while it's sending the current batch
 # TODO: Fckn shutdown properly!
@@ -35,6 +35,8 @@ class Generator(BaseNode):
         self.noise = noise
         self.image = image
         self.buffer = np.zeros((BATCH_SIZE, DIM_NOISE))
+
+        self.Gs = self.Gs_kwargs = self.noise_vars = self.label = None
 
     def setup(self):
         tflib.init_tf()
@@ -181,10 +183,9 @@ class Streamer(BaseNode):
         except Exception as e:
             print("Error: ", e)
 
-    def task(self):
+    def stream_frame(self, image):
         with wait(1 / FPS):
             try:
-                image = self.image.read()
                 if np.all(image == DONE):
                     self.exit.set()
                     return
@@ -200,6 +201,11 @@ class Streamer(BaseNode):
             except Exception as e:
                 print("Error: ", e)
 
+    def task(self):
+        images = self.image.read()
+        for im in images:
+            self.stream_frame(im)
+
     def teardown(self):
         # emit <end-of-stream> event
         self.appsrc.emit("end-of-stream")
@@ -207,29 +213,6 @@ class Streamer(BaseNode):
             sleep(.1)
         self.pipeline.shutdown()
         self.context.shutdown()
-        self.image.close()
-
-
-class Queue(BaseNode):
-    # TODO: make queue more genric
-    #       It should take any number of items at a time and send them in any size batches, or one by one
-    def __init__(self, images: Edge, image: Edge, wait_duration=1 / 24):
-        super().__init__()
-        self.images = images
-        self.image = image
-        self.wait_duration = wait_duration
-
-    def task(self):
-        images = self.images.read()
-        if np.all(images == DONE):
-            self.exit.set()
-            return
-        for img in images:
-            self.image.write(img)
-
-    def teardown(self):
-        self.image.write(DONE)
-        self.images.close()
         self.image.close()
 
 
@@ -247,13 +230,11 @@ class App:
         params['radius'].value = 8.
         params['speed'].value = 0.95
 
-        self.image = Edge()
         self.images = Edge()
         self.noise = Edge()
         self.noise_gen = Noise(self.noise, params)
         self.generator = Generator(self.noise, self.images)
-        self.queue = Queue(self.images, self.image, wait_duration=1 / (FPS + 2))
-        self.streamer = Streamer(self.image)
+        self.streamer = Streamer(self.images)
         self.osc = OSCServer(params)
 
         self.exit = Event()
@@ -263,7 +244,6 @@ class App:
 
         self.noise_gen.start()
         self.generator.start()
-        self.queue.start()
         self.streamer.start()
         self.osc.start()
 
@@ -279,11 +259,9 @@ class App:
         self.noise_gen.exit.set()
         self.noise_gen.join()
         self.generator.join()
-        self.queue.join()
         self.streamer.join()
         self.osc.join()
 
-        self.image.close()
         self.images.close()
         self.noise.close()
 
