@@ -1,19 +1,4 @@
 import multiprocessing as mp
-import time
-from contextlib import contextmanager
-
-
-@contextmanager
-def wait(frame_duration: float):
-    t0 = time.perf_counter()
-    try:
-        yield
-    finally:
-        t1 = time.perf_counter()
-        wait_duration = frame_duration - (t1 - t0)
-        if frame_duration > 0 > wait_duration:
-            print(f'WARNING: computation takes more than frame duration {wait_duration:.4f}')
-        time.sleep(max(wait_duration, 0))
 
 
 class Edge:
@@ -24,10 +9,10 @@ class Edge:
         self.__q.close()
 
     def read(self):
-        return self.__q.get(block=True, timeout=1/30)
+        return self.__q.get(block=True, timeout=1 / 30)
 
     def write(self, value):
-        self.__q.put(value, block=True, timeout=1/30)
+        self.__q.put(value, block=True, timeout=1 / 30)
 
 
 class BaseNode(mp.Process):

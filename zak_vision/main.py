@@ -11,7 +11,7 @@ from gstreamer import Gst, GstApp, GstContext, GstPipeline, GstVideo, utils  # n
 
 import dnnlib
 import dnnlib.tflib as tflib
-from zak_vision.base_nodes import BaseNode, Edge, wait
+from zak_vision.base_nodes import BaseNode, Edge
 from zak_vision.osc import OSCServer
 
 WIDTH = HEIGHT = 1024
@@ -21,7 +21,6 @@ BATCH_SIZE = 10
 NET = 'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada/pretrained/metfaces.pkl'
 
 
-# TODO: Fckn shutdown properly!
 def fraction_to_str(fraction: Fraction) -> str:
     """Converts fraction to str"""
     return '{}/{}'.format(fraction.numerator, fraction.denominator)
@@ -48,13 +47,8 @@ class Generator(BaseNode):
         }
 
         self.noise_vars = [var for name, var in self.Gs.components.synthesis.vars.items() if name.startswith('noise')]
-        # TODO: use this for noise (not latent, actual noise for detail generation)
         tflib.set_vars({var: np.random.randn(*var.shape.as_list()) for var in self.noise_vars})
 
-        # TODO: these are for controlling different levels of the image
-        #       use mapping(z) = w and modulate z to change whole image
-        #       can also directly change any w level (there are 18 of them)
-        #       or only change a couple of levels. Go nuts.
         latent = np.random.randn(DIM_NOISE)
         self.latents = np.stack(latent for _ in range(BATCH_SIZE))
         self.dlatents = self.Gs.components.mapping.run(self.latents, None)
@@ -67,7 +61,7 @@ class Generator(BaseNode):
                 return
 
         # self.dlatents[:, 2] = self.buffer
-        for i in range(18):
+        for i in range(self.dlatents.shape[1]):
             self.dlatents[:, i] = self.buffer
         images = self.Gs.components.synthesis.run(self.dlatents, **self.Gs_kwargs)
         try:
@@ -154,7 +148,7 @@ DTYPE = utils.get_np_dtype(GST_VIDEO_FORMAT)
 DEFAULT_PIPELINE = utils.to_gst_string([
     "appsrc caps={CAPS}".format(**locals()),
     "videoconvert",
-    "v4l2sink device=/dev/video0 sync=false"
+    "v4l2sink device=/dev/video0 sync=true"
 ])
 
 
@@ -198,19 +192,18 @@ class Streamer(BaseNode):
             print("Error: ", e)
 
     def stream_frame(self, image):
-        with wait(1 / FPS):
-            try:
-                gst_buffer = utils.ndarray_to_gst_buffer(image)
+        try:
+            gst_buffer = utils.ndarray_to_gst_buffer(image)
 
-                # set pts and duration to be able to record video, calculate fps
-                self.pts += self.duration  # Increase pts by duration
-                gst_buffer.pts = self.pts
-                gst_buffer.duration = self.duration
+            # set pts and duration to be able to record video, calculate fps
+            self.pts += self.duration  # Increase pts by duration
+            gst_buffer.pts = self.pts
+            gst_buffer.duration = self.duration
 
-                # emit <push-buffer> event with Gst.Buffer
-                self.appsrc.emit("push-buffer", gst_buffer)
-            except Exception as e:
-                print("Error: ", e)
+            # emit <push-buffer> event with Gst.Buffer
+            self.appsrc.emit("push-buffer", gst_buffer)
+        except Exception as e:
+            print("Error: ", e)
 
     def task(self):
         try:
