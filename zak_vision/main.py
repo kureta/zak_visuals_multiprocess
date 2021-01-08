@@ -11,7 +11,7 @@ config = {
     'height': 1024,
     'dim_noise': 512,
     'batch_size': 1,
-    'network': 'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada/pretrained/metfaces.pkl',
+    'network': '/home/kureta/Documents/stylegan2-pretrained/metfaces.pkl',
     'fps': 30,
 }
 
