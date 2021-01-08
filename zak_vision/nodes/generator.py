@@ -46,7 +46,8 @@ class Generator(BaseNode):
                 return
             self.buffer[idx] = buffer
 
+        w = self.dlatents.copy()
         for i in range(self.dlatents.shape[1]):
-            self.dlatents[:, i] = self.buffer[:, i % self.buffer.shape[1]]
-        images = self.Gs.components.synthesis.run(self.dlatents, **self.Gs_kwargs)
+            w[:, i] += self.buffer[:, i % self.buffer.shape[1]]
+        images = self.Gs.components.synthesis.run(w, **self.Gs_kwargs)
         self.write(self.image, images)

@@ -71,7 +71,7 @@ s.waitForBoot({
 			Loudness.kr(fft)
 		);
 		onset = EnvGen.kr(
-			Env.perc(0.066, 0.5, 1.0),
+			Env.perc(0.034, 1.0, 1.0),
 			Onsets.kr(fft)
 		);
 		centroid = Lag.kr(

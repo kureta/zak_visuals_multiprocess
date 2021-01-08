@@ -24,9 +24,13 @@ class NoiseGen(BaseNode):
         return v / norm[:, np.newaxis]
 
     def task(self):
+        w = np.zeros((13, 512))
         chroma = np.frombuffer(self.params['chords_chroma'], dtype='float32')
-        pos = self.pos * chroma[:, np.newaxis] * 100.
-        shit = np.zeros((13, 512))
-        shit[0] = self.params['drums_onset'].value * np.random.randn(512) * 100.
-        shit[1:] = pos
-        self.write(self.output, shit)
+        chroma = self.pos * chroma[:, np.newaxis] * 100.
+        noise = np.random.randn(1, self.dim_noise)
+        chroma += noise * self.params['chords_dissonance']
+        drums_onset = self.params['drums_onset'].value * np.random.randn(512) * 5.
+
+        w[-1] = drums_onset
+        w[:-1] = chroma
+        self.write(self.output, w)
