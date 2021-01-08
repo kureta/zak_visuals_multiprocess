@@ -1,7 +1,7 @@
 import ctypes
 import signal
 from multiprocessing import Event, set_start_method
-from multiprocessing.sharedctypes import RawArray, RawValue
+from multiprocessing.sharedctypes import RawArray, RawValue  # noqa
 
 from zak_vision.nodes import Generator, NoiseGen, OSCServer, Streamer
 from zak_vision.nodes.base_nodes import Edge
@@ -21,17 +21,25 @@ class App:
         set_start_method('spawn', force=True)
 
         params = {
-            'force': RawValue(ctypes.c_float),
-            'radius': RawValue(ctypes.c_float),
-            'speed': RawValue(ctypes.c_float),
-            'amp': RawValue(ctypes.c_float),
-            'chroma': RawArray(ctypes.c_float, 12 * [0.]),
+            'chords_amp': RawValue(ctypes.c_float),
+            'chords_chroma': RawArray(ctypes.c_float, 12 * [0.]),
+            'chords_dissonance': RawValue(ctypes.c_float),
+            'bass_amp': RawValue(ctypes.c_float),
+            'bass_pitch': RawValue(ctypes.c_float),
+            'bass_has_pitch': RawValue(ctypes.c_float),
+            'drums_amp': RawValue(ctypes.c_float),
+            'drums_onset': RawValue(ctypes.c_float),
+            'drums_centroid': RawValue(ctypes.c_float),
         }
 
-        params['force'].value = 0.5
-        params['radius'].value = 8.
-        params['speed'].value = 0.95
-        params['amp'].value = 0.
+        params['chords_amp'].value = 0.
+        params['chords_dissonance'].value = 0.
+        params['bass_amp'].value = 0.
+        params['bass_pitch'].value = 0.
+        params['bass_has_pitch'].value = 0.
+        params['drums_amp'].value = 0.
+        params['drums_onset'].value = 0.
+        params['drums_centroid'].value = 0.
 
         self.images = Edge()
         self.noise = Edge()

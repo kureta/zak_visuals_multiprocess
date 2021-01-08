@@ -1,21 +1,10 @@
 import threading
-from types import FunctionType
 
 from pythonosc import dispatcher, osc_server, udp_client
 
 
 class OSCServer(threading.Thread):
-    on_force: FunctionType
-    on_radius: FunctionType
-    on_speed: FunctionType
-    on_unknown_message: FunctionType
-    on_amp: FunctionType
-    on_chroma: FunctionType
-    on_onset: FunctionType
-    on_has_pitch: FunctionType
-    on_pitch: FunctionType
-    on_dissonance: FunctionType
-
+    # noinspection PyTypeChecker
     def __init__(self, params: dict):
         print('server start')
         super().__init__()
@@ -28,48 +17,48 @@ class OSCServer(threading.Thread):
 
         self.params = params
 
-        self.dispatcher.map('/controls/force', self.on_force)
-        self.dispatcher.map('/controls/radius', self.on_radius)
-        self.dispatcher.map('/controls/speed', self.on_speed)
-        self.dispatcher.map('/controls/amp', self.on_amp)
-        self.dispatcher.map('/controls/chroma*', self.on_chroma)
-        self.dispatcher.map('/controls/onset', self.on_onset)
-        self.dispatcher.map('/controls/has_pitch', self.on_has_pitch)
-        self.dispatcher.map('/controls/pitch', self.on_pitch)
-        self.dispatcher.map('/controls/dissonance', self.on_dissonance)
+        self.dispatcher.map('/chords/amp', self.on_chords_amp)
+        self.dispatcher.map('/chords/chroma*', self.on_chords_chroma)
+        self.dispatcher.map('/chords/dissonance', self.on_chords_dissonance)
+        self.dispatcher.map('/bass/amp', self.on_bass_amp)
+        self.dispatcher.map('/bass/has_pitch', self.on_bass_has_pitch)
+        self.dispatcher.map('/bass/pitch', self.on_bass_pitch)
+        self.dispatcher.map('/drums/amp', self.on_drums_amp)
+        self.dispatcher.map('/drums/onset', self.on_drums_onset)
+        self.dispatcher.map('/drums/centroid', self.on_drums_centroid)
         self.dispatcher.set_default_handler(self.on_unknown_message)
 
     def on_unknown_message(self, addr, *values):
         print(f'Unknown message: addr={addr}', f'values={values}')
         self.client.send_message(addr, values)
 
-    def on_force(self, _addr, value):
-        self.params['force'].value = value
+    def on_chords_amp(self, _addr, value):
+        self.params['chords_amp'].value = value
 
-    def on_radius(self, _addr, value):
-        self.params['radius'].value = value
-
-    def on_speed(self, _addr, value):
-        self.params['speed'].value = value
-
-    def on_amp(self, _addr, value):
-        self.params['amp'].value = value
-
-    def on_chroma(self, addr, value):
+    def on_chords_chroma(self, addr, value):
         idx = int(addr.split('chroma')[-1])
-        self.params['chroma'][idx] = value
+        self.params[f'chords_chroma'][idx] = value
 
-    def on_onset(self, _addr, value):
-        pass
+    def on_chords_dissonance(self, _addr, value):
+        self.params['chords_dissonance'].value = value
 
-    def on_has_pitch(self, _addr, value):
-        pass
+    def on_bass_amp(self, _addr, value):
+        self.params['bass_amp'].value = value
 
-    def on_pitch(self, _addr, value):
-        pass
+    def on_bass_has_pitch(self, _addr, value):
+        self.params['bass_has_pitch'].value = value
 
-    def on_dissonance(self, _addr, value):
-        pass
+    def on_bass_pitch(self, _addr, value):
+        self.params['bass_pitch'].value = value
+
+    def on_drums_amp(self, _addr, value):
+        self.params['drums_amp'].value = value
+
+    def on_drums_onset(self, _addr, value):
+        self.params['drums_onset'].value = value
+
+    def on_drums_centroid(self, _addr, value):
+        self.params['drums_centroid'].value = value
 
     def run(self):
         self.server.serve_forever()

@@ -2,7 +2,16 @@
 - Every scalar will affect either magnitude or direction of a latent vector.
 - There are 17 2D Noises, 18 ws, and  1 z. Controlling by z may be a different mode later on.
 
+## Chords
+chroma, loudness, dissonance
+## Bass
+pitch, loudness, onset
+## Drums
+onset, loudness, spectral centroid (kick or snare - brightness)
+
+
 # TODO
+- [ ] `has_pitch` and `onset` miss some beats, because we are sampling them @30Hz
 - [ ] Animate direction chages. Mostly triggered by onset detection.
 - [ ] Process separate channels:
   - Bass
