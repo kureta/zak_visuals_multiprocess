@@ -33,7 +33,7 @@ class Streamer(BaseNode):
         self.default_pipeline = utils.to_gst_string([
             f'appsrc caps={self.caps}',
             'videoconvert',
-            'v4l2sink device=/dev/video0 sync=true'
+            'v4l2sink device=/dev/video0 sync=false'
         ])
 
         self.duration = 10 ** 9 / (fps.numerator / fps.denominator)
