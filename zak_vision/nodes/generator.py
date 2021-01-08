@@ -17,7 +17,7 @@ class Generator(BaseNode):
         self.batch_size = config['batch_size']
         self.network = config['network']
 
-        self.buffer = np.zeros((config['batch_size'], config['dim_noise']))
+        self.buffer = np.zeros((config['batch_size'], 13, config['dim_noise']))
 
         self.Gs = self.Gs_kwargs = self.noise_vars = self.label = self.latents = self.dlatents = None
 
@@ -47,6 +47,6 @@ class Generator(BaseNode):
             self.buffer[idx] = buffer
 
         for i in range(self.dlatents.shape[1]):
-            self.dlatents[:, i] = self.buffer
+            self.dlatents[:, i] = self.buffer[:, i % self.buffer.shape[1]]
         images = self.Gs.components.synthesis.run(self.dlatents, **self.Gs_kwargs)
         self.write(self.image, images)

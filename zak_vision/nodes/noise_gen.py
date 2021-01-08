@@ -10,58 +10,24 @@ class NoiseGen(BaseNode):
         self.output = output
 
         self.dim_noise = config['dim_noise']
-
-        self.force = params['force']
-        self.speed = params['speed']
-        self.radius = params['radius']
+        self.chroma = params['chroma']
+        self.amp = params['amp']
 
         self.pos = None
-        self.vel = None
-        self.acc = None
 
     def setup(self):
-        self.pos = np.random.randn(self.dim_noise)
+        self.pos = np.random.randn(12, self.dim_noise)
         self.pos = self.make_unit(self.pos)
-        self.pos *= self.radius.value
-
-        self.vel = np.random.randn(self.dim_noise)
-        self.vel = self.make_orthogonal_to(self.vel, self.pos)
-        self.vel = self.make_unit(self.vel)
-        self.vel *= self.speed.value
-
-        self.acc = np.random.randn(self.dim_noise)
-        self.acc = self.make_orthogonal_to(self.acc, self.vel)
-        self.acc = self.make_orthogonal_to(self.acc, self.pos)
-        self.acc = self.make_unit(self.acc)
-        self.acc *= self.force.value
 
     @staticmethod
     def make_unit(v):
-        norm = np.linalg.norm(v)
-        if np.isclose(norm, 0.):
-            return v
-        return v / norm
-
-    def make_orthogonal_to(self, v1, v2):
-        v_r = np.dot(v1, v2) * self.make_unit(v2)
-        return v1 - v_r
-
-    def apply_force(self):
-        self.acc = np.random.randn(*self.acc.shape)
-        # self.acc = self.make_orthogonal_to(self.acc, self.vel)
-        # self.acc = self.make_orthogonal_to(self.acc, self.pos)
-        # self.acc = self.make_unit(self.acc)
-        self.acc *= self.force.value
-
-        self.vel += self.acc
-        # self.vel = self.make_orthogonal_to(self.vel, self.pos)
-        self.vel = self.make_unit(self.vel)
-        self.vel *= self.speed.value
-
-        self.pos += self.vel
-        self.pos = self.make_unit(self.pos)
-        self.pos *= self.radius.value
+        norm = np.linalg.norm(v, axis=1)
+        return v / norm[:, np.newaxis]
 
     def task(self):
-        self.apply_force()
-        self.write(self.output, self.pos)
+        chroma = np.frombuffer(self.chroma, dtype='float32')
+        pos = self.pos * chroma[:, np.newaxis] * 100.
+        shit = np.zeros((13, 512))
+        shit[0] = self.amp.value * np.random.randn(512) * 0.01
+        shit[1:] = pos
+        self.write(self.output, shit)

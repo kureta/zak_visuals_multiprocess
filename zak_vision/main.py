@@ -1,6 +1,7 @@
 import ctypes
 import signal
-from multiprocessing import Event, Value, set_start_method
+from multiprocessing import Event, set_start_method
+from multiprocessing.sharedctypes import RawArray, RawValue
 
 from zak_vision.nodes import Generator, NoiseGen, OSCServer, Streamer
 from zak_vision.nodes.base_nodes import Edge
@@ -20,14 +21,17 @@ class App:
         set_start_method('spawn', force=True)
 
         params = {
-            'force': Value(ctypes.c_float, lock=False),
-            'radius': Value(ctypes.c_float, lock=False),
-            'speed': Value(ctypes.c_float, lock=False),
+            'force': RawValue(ctypes.c_float),
+            'radius': RawValue(ctypes.c_float),
+            'speed': RawValue(ctypes.c_float),
+            'amp': RawValue(ctypes.c_float),
+            'chroma': RawArray(ctypes.c_float, 12 * [0.]),
         }
 
         params['force'].value = 0.5
         params['radius'].value = 8.
         params['speed'].value = 0.95
+        params['amp'].value = 0.
 
         self.images = Edge()
         self.noise = Edge()
