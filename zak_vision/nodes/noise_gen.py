@@ -3,6 +3,14 @@ import numpy as np
 from zak_vision.nodes.base_nodes import BaseNode, Edge
 
 
+def random_orthonormal(n, m=512):
+    H = np.random.randn(n, m)
+    u, s, vh = np.linalg.svd(H, full_matrices=False)
+    mat = u @ vh
+
+    return mat
+
+
 class NoiseGen(BaseNode):
     # TODO: do the same thing, but sphere is not centered around the origin
     def __init__(self, output: Edge, params, config):
@@ -12,11 +20,12 @@ class NoiseGen(BaseNode):
         self.dim_noise = config['dim_noise']
         self.params = params
 
-        self.pos = None
+        self.chroma = None
 
     def setup(self):
-        self.pos = np.random.randn(12, self.dim_noise)
-        self.pos = self.make_unit(self.pos)
+        # TODO: add randomizable offset
+        # TODO: fix croma and amp scaling
+        self.chroma = random_orthonormal(12, self.dim_noise)
 
     @staticmethod
     def make_unit(v):
@@ -24,13 +33,10 @@ class NoiseGen(BaseNode):
         return v / norm[:, np.newaxis]
 
     def task(self):
-        w = np.zeros((13, 512))
-        chroma = np.frombuffer(self.params['chords_chroma'], dtype='float32')
-        chroma = self.pos * chroma[:, np.newaxis] * 100.
-        noise = np.random.randn(1, self.dim_noise)
-        chroma += noise * self.params['chords_dissonance']
-        drums_onset = self.params['drums_onset'].value * np.random.randn(512) * 5.
+        chords_chroma = np.frombuffer(self.params['chords_chroma'], dtype='float32')
+        chords_chroma = np.sum(self.chroma * chords_chroma[:, np.newaxis], axis=0)
+        chords_amp = self.params['chords_amp'].value
 
-        w[-1] = drums_onset
-        w[:-1] = chroma
-        self.write(self.output, w)
+        chords_chroma *= chords_amp * 50.
+
+        self.write(self.output, chords_chroma)

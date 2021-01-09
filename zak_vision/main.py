@@ -10,7 +10,6 @@ config = {
     'width': 1024,
     'height': 1024,
     'dim_noise': 512,
-    'batch_size': 1,
     'network': '/home/kureta/Documents/stylegan2-pretrained/metfaces.pkl',
     'fps': 30,
 }
@@ -44,7 +43,7 @@ class App:
         self.images = Edge()
         self.noise = Edge()
         self.noise_gen = NoiseGen(self.noise, params, config)
-        self.generator = Generator(self.noise, self.images, config)
+        self.generator = Generator(self.noise, self.images, config, params)
         self.streamer = Streamer(self.images, config)
         self.osc = OSCServer(params)
 

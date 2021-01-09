@@ -23,10 +23,12 @@ s.waitForBoot({
 		# harmonic, percussive = MedianSeparation(fft,FFTTrigger(LocalBuf(2048)),FFTTrigger(LocalBuf(2048)),2048,9);
 
 		chroma=Lag.kr(
-			Chromagram.kr(harmonic, perframenormalize: 1)
+			Clip.kr((10 * Chromagram.kr(harmonic).squared.log10 + 40) / 40, 0.0, 10.0),
+			1.0
 		);
 		amp = Lag.kr(
-			Loudness.kr(fft)
+			Clip.kr((10 * RMS.kr(input).squared.log10 + 40) / 40, 0.0, 10.0),
+			1.0
 		);
 		dissonance = Lag.kr(
 			SensoryDissonance.kr(fft)
@@ -42,11 +44,11 @@ s.waitForBoot({
 
 		trig = Impulse.kr(rate);
 		input = SoundIn.ar(in);
-		fft = FFT(LocalBuf(2048), input);
+		// fft = FFT(LocalBuf(2048), input);
 		// # harmonic, percussive = MedianSeparation(fft,FFTTrigger(LocalBuf(2048)),FFTTrigger(LocalBuf(2048)),2048,9);
 
 		amp = Lag.kr(
-			Loudness.kr(fft)
+			Clip.kr((10 * RMS.kr(input).squared.log10 + 40) / 40)
 		);
 		# pitch, hasPitch = Tartini.kr(input);
 		pitch = Lag.kr(pitch.cpsmidi);
@@ -68,15 +70,14 @@ s.waitForBoot({
 		fft = FFT(LocalBuf(2048), input);
 
 		amp = Lag.kr(
-			Loudness.kr(fft)
-		);
+			Clip.kr((10 * RMS.kr(input).squared.log10 + 40) / 40),
+			1.0
+		) + 0.05;
 		onset = EnvGen.kr(
 			Env.perc(0.034, 1.0, 1.0),
 			Onsets.kr(fft)
 		);
-		centroid = Lag.kr(
-			SpecCentroid.kr(fft)
-		);
+		centroid = Clip.kr(SpecCentroid.kr(fft).cpsmidi / 127.0);
 
 		SendReply.kr(trig, '/drums/amp', amp);
 		SendReply.kr(trig, '/drums/onset', onset);
@@ -109,6 +110,7 @@ s.waitForBoot({
 	OSCdef(\on_chords_dissonance, { |msg|
 		~zak.sendMsg("/chords/dissonance", msg[3]);
 	}, '/chords/dissonance');
+
 	// -------------------------- Bass --------------------------------------
 	OSCdef(\on_bass_amp, { |msg|
 		~zak.sendMsg("/bass/amp", msg[3]);
@@ -121,6 +123,7 @@ s.waitForBoot({
 	OSCdef(\on_bass_pitch, { |msg|
 		~zak.sendMsg("/bass/pitch", msg[3]);
 	}, '/bass/pitch');
+
 	// -------------------------- Drums -------------------------------------
 	OSCdef(\on_drums_amp, { |msg|
 		~zak.sendMsg("/drums/amp", msg[3]);

@@ -54,6 +54,7 @@ class Streamer(BaseNode):
             # instructs appsrc to block pushing buffers until ones in queue are preprocessed
             # allows to avoid huge queue internal queue size in appsrc
             self.appsrc.set_property("block", True)
+            self.appsrc.set_property("is-live", True)
 
             # set input format (caps)
             self.appsrc.set_caps(Gst.Caps.from_string(self.caps))
@@ -87,8 +88,7 @@ class Streamer(BaseNode):
         images = self.read(self.image)
         if images is None:
             return
-        for im in images:
-            self.stream_frame(im)
+        self.stream_frame(images)
 
     def teardown(self):
         # emit <end-of-stream> event

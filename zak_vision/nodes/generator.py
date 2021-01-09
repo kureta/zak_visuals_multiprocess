@@ -8,18 +8,18 @@ from zak_vision.nodes.base_nodes import BaseNode, Edge
 
 
 class Generator(BaseNode):
-    def __init__(self, noise: Edge, image: Edge, config):
+    def __init__(self, noise: Edge, image: Edge, config, params):
         super().__init__()
         self.noise = noise
         self.image = image
 
         self.dim_noise = config['dim_noise']
-        self.batch_size = config['batch_size']
         self.network = config['network']
+        self.params = params
 
-        self.buffer = np.zeros((config['batch_size'], 13, config['dim_noise']))
+        self.buffer = np.zeros((1, 13, config['dim_noise']))
 
-        self.Gs = self.Gs_kwargs = self.noise_vars = self.label = self.latents = self.dlatents = None
+        self.Gs = self.Gs_kwargs = self.noise_vars = self.noise_values = self.label = self.latents = self.dlatents = None
 
     def setup(self):
         tflib.init_tf()
@@ -33,21 +33,25 @@ class Generator(BaseNode):
         }
 
         self.noise_vars = [var for name, var in self.Gs.components.synthesis.vars.items() if name.startswith('noise')]
-        tflib.set_vars({var: np.random.randn(*var.shape.as_list()) for var in self.noise_vars})
+        self.noise_values = [np.random.randn(*var.shape.as_list()) for var in self.noise_vars]
+        tflib.set_vars({var: self.noise_values[idx] for idx, var in enumerate(self.noise_vars)})
 
-        latent = np.random.randn(self.dim_noise)
-        self.latents = np.stack([latent for _ in range(self.batch_size)])
+        self.latents = np.random.randn(1, self.dim_noise)
         self.dlatents = self.Gs.components.mapping.run(self.latents, None)
 
     def task(self):
-        for idx in range(self.batch_size):
-            buffer = self.read(self.noise)
-            if buffer is None:
-                return
-            self.buffer[idx] = buffer
+        self.buffer = self.read(self.noise)
+        if self.buffer is None:
+            return
+        # drums_amp = self.params['drums_amp'].value
+        # drums_onset = self.params['drums_onset'].value
+        # drums_centroid = self.params['drums_centroid'].value
+        # tflib.set_vars(
+        #     {self.noise_vars[idx]: 50 * drums_onset * drums_amp * (1 - drums_centroid) * self.noise_values[idx] for idx in
+        #      range(9)})
+        # tflib.set_vars({self.noise_vars[idx]: 50 * drums_onset * drums_amp * drums_centroid * self.noise_values[idx] for idx in
+        #                 range(9, 17)})
+        self.dlatents = self.Gs.components.mapping.run(self.buffer[np.newaxis, :], None)
 
-        w = self.dlatents.copy()
-        for i in range(self.dlatents.shape[1]):
-            w[:, i] += self.buffer[:, i % self.buffer.shape[1]]
-        images = self.Gs.components.synthesis.run(w, **self.Gs_kwargs)
+        images = self.Gs.components.synthesis.run(self.dlatents, **self.Gs_kwargs)
         self.write(self.image, images)
