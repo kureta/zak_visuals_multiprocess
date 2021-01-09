@@ -23,11 +23,11 @@ s.waitForBoot({
 		# harmonic, percussive = MedianSeparation(fft,FFTTrigger(LocalBuf(2048)),FFTTrigger(LocalBuf(2048)),2048,9);
 
 		chroma=Lag.kr(
-			Clip.kr((10 * Chromagram.kr(harmonic).squared.log10 + 40) / 40, 0.0, 10.0),
+			Chromagram.kr(harmonic).squared,
 			1.0
 		);
 		amp = Lag.kr(
-			Clip.kr((10 * RMS.kr(input).squared.log10 + 40) / 40, 0.0, 10.0),
+			RMS.kr(input),
 			1.0
 		);
 		dissonance = Lag.kr(
@@ -70,9 +70,9 @@ s.waitForBoot({
 		fft = FFT(LocalBuf(2048), input);
 
 		amp = Lag.kr(
-			Clip.kr((10 * RMS.kr(input).squared.log10 + 40) / 40),
+			RMS.kr(input) * 1000.0,
 			1.0
-		) + 0.05;
+		);
 		onset = EnvGen.kr(
 			Env.perc(0.034, 1.0, 1.0),
 			Onsets.kr(fft)

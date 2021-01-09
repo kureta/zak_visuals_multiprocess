@@ -7,10 +7,17 @@ import dnnlib.tflib as tflib
 from zak_vision.nodes.base_nodes import BaseNode, Edge
 
 
+def random_orthonormal(n, m=512):
+    h = np.random.randn(n, m)
+    u, s, vh = np.linalg.svd(h, full_matrices=False)
+    mat = u @ vh
+
+    return mat
+
+
 class Generator(BaseNode):
-    def __init__(self, noise: Edge, image: Edge, config, params):
+    def __init__(self, image: Edge, config, params):
         super().__init__()
-        self.noise = noise
         self.image = image
 
         self.dim_noise = config['dim_noise']
@@ -19,7 +26,8 @@ class Generator(BaseNode):
 
         self.buffer = np.zeros((1, 13, config['dim_noise']))
 
-        self.Gs = self.Gs_kwargs = self.noise_vars = self.noise_values = self.label = self.latents = self.dlatents = None
+        self.Gs = self.Gs_kwargs = self.noise_vars = self.noise_values = None
+        self.label = self.latents = self.dlatents = self.chroma = None
 
     def setup(self):
         tflib.init_tf()
@@ -29,7 +37,7 @@ class Generator(BaseNode):
         self.Gs_kwargs = {
             'output_transform': dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True),
             'randomize_noise': False,
-            'truncation_psi': 1.0,
+            'truncation_psi': 0,
         }
 
         self.noise_vars = [var for name, var in self.Gs.components.synthesis.vars.items() if name.startswith('noise')]
@@ -38,20 +46,15 @@ class Generator(BaseNode):
 
         self.latents = np.random.randn(1, self.dim_noise)
         self.dlatents = self.Gs.components.mapping.run(self.latents, None)
+        self.chroma = random_orthonormal(12, self.dim_noise)
 
     def task(self):
-        self.buffer = self.read(self.noise)
-        if self.buffer is None:
-            return
-        # drums_amp = self.params['drums_amp'].value
-        # drums_onset = self.params['drums_onset'].value
-        # drums_centroid = self.params['drums_centroid'].value
-        # tflib.set_vars(
-        #     {self.noise_vars[idx]: 50 * drums_onset * drums_amp * (1 - drums_centroid) * self.noise_values[idx] for idx in
-        #      range(9)})
-        # tflib.set_vars({self.noise_vars[idx]: 50 * drums_onset * drums_amp * drums_centroid * self.noise_values[idx] for idx in
-        #                 range(9, 17)})
-        self.dlatents = self.Gs.components.mapping.run(self.buffer[np.newaxis, :], None)
+        chords_chroma = np.frombuffer(self.params['chords_chroma'], dtype='float32')
+        chords_chroma = np.sum(self.chroma * chords_chroma[:, np.newaxis], axis=0)
+
+        self.dlatents = self.Gs.components.mapping.run(chords_chroma[np.newaxis, :], None)
+        for i in range(18):
+            self.dlatents[0, i, :] += chords_chroma
 
         images = self.Gs.components.synthesis.run(self.dlatents, **self.Gs_kwargs)
         self.write(self.image, images)
