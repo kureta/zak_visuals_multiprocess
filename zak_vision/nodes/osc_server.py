@@ -5,7 +5,6 @@ from pythonosc import dispatcher, osc_server, udp_client
 
 
 class OSCServer(threading.Thread):
-    # noinspection PyTypeChecker
     def __init__(self, params: dict):
         print('server start')
         super().__init__()
@@ -17,7 +16,10 @@ class OSCServer(threading.Thread):
         self.client = udp_client.SimpleUDPClient(ip, port)
 
         self.params = params
+        self.setup_listeners()
 
+    # noinspection PyTypeChecker
+    def setup_listeners(self):
         self.dispatcher.map('/chords/amp', self.on_chords_amp)
         self.dispatcher.map('/chords/chroma', self.on_chords_chroma)
         self.dispatcher.map('/chords/dissonance', self.on_chords_dissonance)

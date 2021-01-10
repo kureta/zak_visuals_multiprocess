@@ -25,27 +25,53 @@ def fraction_to_str(fraction):
 
 VIDEO_FORMAT = 'RGB'
 GST_VIDEO_FORMAT = GstVideo.VideoFormat.from_string(VIDEO_FORMAT)
+FPS = 30
+NETWORK = '/home/kureta/Documents/stylegan2-pretrained/metfaces.pkl'
 
 
 class Generator(BaseNode):
-    def __init__(self, config, params):
+    def __init__(self, params):
         super().__init__()
-        self.config = config
         self.params = params
 
-    # noinspection PyAttributeOutsideInit
-    def setup(self):
-        fps = Fraction(self.config['fps'])
-        width = self.config['width']
-        height = self.config['height']
+        self.default_pipeline = self.duration = self.appsrc = self.context = self.pipeline = None
+        self.pts = self.buffer = self.Gs = self.Gs_kwargs = None
+        self.noise_vars = self.noise_values = self.latents = self.dlatents = self.chroma = None
 
+    def setup(self):
+        tflib.init_tf()
+        with dnnlib.util.open_url(NETWORK) as fp:
+            _G, _D, self.Gs = pickle.load(fp)
+            del _G
+            del _D
+
+        self.Gs_kwargs = {
+            'output_transform': dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True),
+            'randomize_noise': False,
+            'truncation_psi': 0,
+        }
+
+        dim_noise = self.Gs.input_shape[1]
+        width = self.Gs.output_shape[2]
+        height = self.Gs.output_shape[3]
+
+        self.buffer = np.zeros((1, 13, dim_noise))
+        self.noise_vars = [var for name, var in self.Gs.components.synthesis.vars.items() if name.startswith('noise')]
+        self.noise_values = [np.random.randn(*var.shape.as_list()) for var in self.noise_vars]
+        tflib.set_vars({var: self.noise_values[idx] for idx, var in enumerate(self.noise_vars)})
+
+        self.latents = np.random.randn(1, dim_noise)
+        self.dlatents = self.Gs.components.mapping.run(self.latents, None)
+        self.chroma = random_orthonormal(12, dim_noise)
+
+        fps = Fraction(FPS)
         fps_str = fraction_to_str(fps)
-        self.caps = f'video/x-raw,format={VIDEO_FORMAT},width={width},height={height},framerate={fps_str}'
+        caps = f'video/x-raw,format={VIDEO_FORMAT},width={width},height={height},framerate={fps_str}'
 
         # Converts list of plugins to gst-launch string
         # ['plugin_1', 'plugin_2', 'plugin_3'] => plugin_1 ! plugin_2 ! plugin_3
         self.default_pipeline = utils.to_gst_string([
-            f'appsrc caps={self.caps}',
+            f'appsrc caps={caps}',
             'videoconvert',
             'v4l2sink device=/dev/video0 sync=false'
         ])
@@ -70,7 +96,7 @@ class Generator(BaseNode):
             self.appsrc.set_property("is-live", True)
 
             # set input format (caps)
-            self.appsrc.set_caps(Gst.Caps.from_string(self.caps))
+            self.appsrc.set_caps(Gst.Caps.from_string(caps))
 
         # override on_pipeline_init to set specific properties before launching pipeline
         self.pipeline._on_pipeline_init = on_pipeline_init.__get__(self.pipeline)  # noqa
@@ -82,29 +108,6 @@ class Generator(BaseNode):
             self.pts = 0  # buffers presentation timestamp
         except Exception as e:
             print("Error: ", e)
-
-        self.dim_noise = self.config['dim_noise']
-        self.network = self.config['network']
-
-        self.buffer = np.zeros((1, 13, self.config['dim_noise']))
-
-        tflib.init_tf()
-        with dnnlib.util.open_url(self.network) as fp:
-            _G, _D, self.Gs = pickle.load(fp)
-
-        self.Gs_kwargs = {
-            'output_transform': dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True),
-            'randomize_noise': False,
-            'truncation_psi': 0,
-        }
-
-        self.noise_vars = [var for name, var in self.Gs.components.synthesis.vars.items() if name.startswith('noise')]
-        self.noise_values = [np.random.randn(*var.shape.as_list()) for var in self.noise_vars]
-        tflib.set_vars({var: self.noise_values[idx] for idx, var in enumerate(self.noise_vars)})
-
-        self.latents = np.random.randn(1, self.dim_noise)
-        self.dlatents = self.Gs.components.mapping.run(self.latents, None)
-        self.chroma = random_orthonormal(12, self.dim_noise)
 
     def stream_frame(self, image):
         try:

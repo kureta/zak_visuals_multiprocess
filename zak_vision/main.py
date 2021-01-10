@@ -5,14 +5,6 @@ from multiprocessing.sharedctypes import RawArray, RawValue  # noqa
 
 from zak_vision.nodes import Generator, OSCServer
 
-config = {
-    'width': 1024,
-    'height': 1024,
-    'dim_noise': 512,
-    'network': '/home/kureta/Documents/stylegan2-pretrained/metfaces.pkl',
-    'fps': 30,
-}
-
 
 class App:
     def __init__(self):
@@ -39,7 +31,7 @@ class App:
         params['drums_onset'].value = 0.
         params['drums_centroid'].value = 0.
 
-        self.generator = Generator(config, params)
+        self.generator = Generator(params)
         self.osc = OSCServer(params)
 
         self.exit = Event()
