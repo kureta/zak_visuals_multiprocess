@@ -3,8 +3,7 @@ import signal
 from multiprocessing import Event, set_start_method
 from multiprocessing.sharedctypes import RawArray, RawValue  # noqa
 
-from zak_vision.nodes import Generator, OSCServer, Streamer
-from zak_vision.nodes.base_nodes import Edge
+from zak_vision.nodes import Generator, OSCServer
 
 config = {
     'width': 1024,
@@ -40,9 +39,7 @@ class App:
         params['drums_onset'].value = 0.
         params['drums_centroid'].value = 0.
 
-        self.images = Edge()
-        self.generator = Generator(self.images, config, params)
-        self.streamer = Streamer(self.images, config)
+        self.generator = Generator(config, params)
         self.osc = OSCServer(params)
 
         self.exit = Event()
@@ -51,7 +48,6 @@ class App:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         self.generator.start()
-        self.streamer.start()
         self.osc.start()
 
         signal.signal(signal.SIGINT, self.on_keyboard_interrupt)
@@ -64,10 +60,7 @@ class App:
 
     def exit_handler(self):
         self.generator.join()
-        self.streamer.join()
         self.osc.join()
-
-        self.images.close()
 
         exit(0)
 
