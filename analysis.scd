@@ -1,9 +1,7 @@
 (
 "SC_JACK_DEFAULT_INPUTS".setenv("Bitwig Studio:chords,Bitwig Studio:bass,Bitwig Studio:drums,Bitwig Studio:lead");
-s = Server.local;
 s.quit;
 s.freeAll;
-// s.options.memSize_(2.pow(20));
 s.options.numInputBusChannels = 4;
 s.boot;
 
@@ -23,12 +21,12 @@ s.waitForBoot({
 		# harmonic, percussive = MedianSeparation(fft,FFTTrigger(LocalBuf(2048)),FFTTrigger(LocalBuf(2048)),2048,9);
 
 		chroma=Lag.kr(
-			Chromagram.kr(harmonic).squared,
-			1.0
+			Chromagram.kr(harmonic).squared * 1000.0,
+			3/30
 		);
 		amp = Lag.kr(
 			RMS.kr(input),
-			1.0
+			1/30
 		);
 		dissonance = Lag.kr(
 			SensoryDissonance.kr(fft)
@@ -100,11 +98,8 @@ s.waitForBoot({
 	}, '/chords/amp');
 
 	OSCdef(\on_chords_chroma, { |msg|
-		var chroma = msg.copyToEnd(3);
-		chroma.do {
-			arg item, idx;
-			~zak.sendMsg("/chords/chroma" ++ (idx), item);
-		};
+		var chords = msg.copyToEnd(3);
+		~zak.sendMsg("/chords/chroma", *chords);
 	}, '/chords/chroma');
 
 	OSCdef(\on_chords_dissonance, { |msg|

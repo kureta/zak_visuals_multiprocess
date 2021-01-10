@@ -1,3 +1,4 @@
+import struct
 import threading
 
 from pythonosc import dispatcher, osc_server, udp_client
@@ -18,7 +19,7 @@ class OSCServer(threading.Thread):
         self.params = params
 
         self.dispatcher.map('/chords/amp', self.on_chords_amp)
-        self.dispatcher.map('/chords/chroma*', self.on_chords_chroma)
+        self.dispatcher.map('/chords/chroma', self.on_chords_chroma)
         self.dispatcher.map('/chords/dissonance', self.on_chords_dissonance)
         self.dispatcher.map('/bass/amp', self.on_bass_amp)
         self.dispatcher.map('/bass/has_pitch', self.on_bass_has_pitch)
@@ -35,9 +36,8 @@ class OSCServer(threading.Thread):
     def on_chords_amp(self, _addr, value):
         self.params['chords_amp'].value = value
 
-    def on_chords_chroma(self, addr, value):
-        idx = int(addr.split('chroma')[-1])
-        self.params[f'chords_chroma'][idx] = value
+    def on_chords_chroma(self, _addr, *value):
+        struct.pack_into('ffffffffffff', self.params[f'chords_chroma'], 0, *value)
 
     def on_chords_dissonance(self, _addr, value):
         self.params['chords_dissonance'].value = value
