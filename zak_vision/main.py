@@ -1,9 +1,13 @@
 import ctypes
+import logging
 import signal
 from multiprocessing import Event
 from multiprocessing.sharedctypes import RawArray, RawValue  # noqa
 
 from zak_vision.nodes import Generator, OSCServer
+
+for handler in logging.root.handlers:
+    handler.setLevel(logging.WARNING)
 
 
 class App:

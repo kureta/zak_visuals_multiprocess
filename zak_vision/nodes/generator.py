@@ -33,11 +33,18 @@ class Generator(BaseNode):
         super().__init__()
         self.params = params
 
-        self.duration = self.appsrc = self.context = self.pipeline = None
-        self.pts = self.Gs = self.Gs_kwargs = None
-        self.noise_vars = self.noise_values = self.latents = self.dlatents = self.chroma = None
+        # Network attributes
+        self.Gs = self.Gs_kwargs = None
 
-    def setup(self):
+        # Latent and noise attributes
+        self.noise_values = self.noise_vars = self.latents = None
+        self.dlatents = self.chroma = None
+
+        # Streamer attributes
+        self.duration = self.appsrc = self.pipeline = None
+        self.context = self.pts = None
+
+    def setup_network(self):
         tflib.init_tf()
         with dnnlib.util.open_url(NETWORK) as fp:
             _G, _D, self.Gs = pickle.load(fp)
@@ -45,7 +52,8 @@ class Generator(BaseNode):
             del _D
 
         self.Gs_kwargs = {
-            'output_transform': dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True),
+            'output_transform': dict(func=tflib.convert_images_to_uint8,
+                                     nchw_to_nhwc=True),
             'randomize_noise': False,
             'truncation_psi': 0,
         }
@@ -54,6 +62,9 @@ class Generator(BaseNode):
         width = self.Gs.output_shape[2]
         height = self.Gs.output_shape[3]
 
+        return dim_noise, width, height
+
+    def setup_latents(self, dim_noise):
         self.noise_vars = [var for name, var in self.Gs.components.synthesis.vars.items() if name.startswith('noise')]
         self.noise_values = [np.random.randn(*var.shape.as_list()) for var in self.noise_vars]
         tflib.set_vars({var: self.noise_values[idx] for idx, var in enumerate(self.noise_vars)})
@@ -62,6 +73,7 @@ class Generator(BaseNode):
         self.dlatents = self.Gs.components.mapping.run(self.latents, None)
         self.chroma = random_orthonormal(12, dim_noise)
 
+    def setup_streamer(self, width, height):
         fps = Fraction(FPS)
         fps_str = fraction_to_str(fps)
         caps = f'video/x-raw,format={VIDEO_FORMAT},width={width},height={height},framerate={fps_str}'
@@ -107,6 +119,15 @@ class Generator(BaseNode):
         except Exception as e:
             print("Error: ", e)
 
+    def setup(self):
+        print('Loading network checkpoint...', end=' ')
+        dim_noise, width, height = self.setup_network()
+        print('Setting up initial latents and noise...', end=' ')
+        self.setup_latents(dim_noise)
+        print('Setting up streamer...', end=' ')
+        self.setup_streamer(width, height)
+        print('Ready!')
+
     def stream_frame(self, image):
         try:
             gst_buffer = utils.ndarray_to_gst_buffer(image)
@@ -125,6 +146,7 @@ class Generator(BaseNode):
         chords_chroma = np.frombuffer(self.params['chords_chroma'], dtype='float32')
         chords_chroma = np.sum(self.chroma * chords_chroma[:, np.newaxis], axis=0)
 
+        # noinspection PyAttributeOutsideInit
         self.dlatents = self.Gs.components.mapping.run(chords_chroma[np.newaxis, :], None)
         for i in range(18):
             self.dlatents[0, i, :] += chords_chroma

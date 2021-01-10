@@ -8,6 +8,8 @@ class OSCServer(threading.Thread):
     def __init__(self, params: dict):
         super().__init__()
         self.params = params
+
+        # Attributes
         self.dispatcher = self.server = None
 
     def setup(self):
@@ -61,7 +63,9 @@ class OSCServer(threading.Thread):
         self.params['drums_centroid'].value = value
 
     def run(self):
+        print('Starting OSC Server...', end=' ')
         self.setup()
+        print('OSC Server started.')
         self.server.serve_forever()
 
     def join(self, **kwargs):
