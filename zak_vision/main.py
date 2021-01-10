@@ -1,6 +1,6 @@
 import ctypes
 import signal
-from multiprocessing import Event, set_start_method
+from multiprocessing import Event
 from multiprocessing.sharedctypes import RawArray, RawValue  # noqa
 
 from zak_vision.nodes import Generator, OSCServer
@@ -8,8 +8,6 @@ from zak_vision.nodes import Generator, OSCServer
 
 class App:
     def __init__(self):
-        set_start_method('spawn', force=True)
-
         params = {
             'chords_amp': RawValue(ctypes.c_float),
             'chords_chroma': RawArray(ctypes.c_float, 12 * [0.]),

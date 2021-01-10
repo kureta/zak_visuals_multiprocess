@@ -9,6 +9,11 @@ import dnnlib
 import dnnlib.tflib as tflib
 from zak_vision.nodes.base_nodes import BaseNode
 
+VIDEO_FORMAT = 'RGB'
+GST_VIDEO_FORMAT = GstVideo.VideoFormat.from_string(VIDEO_FORMAT)
+FPS = 30
+NETWORK = '/home/kureta/Documents/stylegan2-pretrained/metfaces.pkl'
+
 
 def random_orthonormal(n, m=512):
     h = np.random.randn(n, m)
@@ -23,19 +28,13 @@ def fraction_to_str(fraction):
     return '{}/{}'.format(fraction.numerator, fraction.denominator)
 
 
-VIDEO_FORMAT = 'RGB'
-GST_VIDEO_FORMAT = GstVideo.VideoFormat.from_string(VIDEO_FORMAT)
-FPS = 30
-NETWORK = '/home/kureta/Documents/stylegan2-pretrained/metfaces.pkl'
-
-
 class Generator(BaseNode):
     def __init__(self, params):
         super().__init__()
         self.params = params
 
-        self.default_pipeline = self.duration = self.appsrc = self.context = self.pipeline = None
-        self.pts = self.buffer = self.Gs = self.Gs_kwargs = None
+        self.duration = self.appsrc = self.context = self.pipeline = None
+        self.pts = self.Gs = self.Gs_kwargs = None
         self.noise_vars = self.noise_values = self.latents = self.dlatents = self.chroma = None
 
     def setup(self):
@@ -55,7 +54,6 @@ class Generator(BaseNode):
         width = self.Gs.output_shape[2]
         height = self.Gs.output_shape[3]
 
-        self.buffer = np.zeros((1, 13, dim_noise))
         self.noise_vars = [var for name, var in self.Gs.components.synthesis.vars.items() if name.startswith('noise')]
         self.noise_values = [np.random.randn(*var.shape.as_list()) for var in self.noise_vars]
         tflib.set_vars({var: self.noise_values[idx] for idx, var in enumerate(self.noise_vars)})
@@ -70,7 +68,7 @@ class Generator(BaseNode):
 
         # Converts list of plugins to gst-launch string
         # ['plugin_1', 'plugin_2', 'plugin_3'] => plugin_1 ! plugin_2 ! plugin_3
-        self.default_pipeline = utils.to_gst_string([
+        default_pipeline = utils.to_gst_string([
             f'appsrc caps={caps}',
             'videoconvert',
             'v4l2sink device=/dev/video0 sync=false'
@@ -81,7 +79,7 @@ class Generator(BaseNode):
 
         self.context = GstContext()
         self.context.startup()
-        self.pipeline = GstPipeline(self.default_pipeline)
+        self.pipeline = GstPipeline(default_pipeline)
 
         def on_pipeline_init(other_self):
             """Setup AppSrc element"""

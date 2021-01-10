@@ -1,21 +1,19 @@
 import struct
 import threading
 
-from pythonosc import dispatcher, osc_server, udp_client
+from pythonosc import dispatcher, osc_server
 
 
 class OSCServer(threading.Thread):
     def __init__(self, params: dict):
-        print('server start')
         super().__init__()
+        self.params = params
+        self.dispatcher = self.server = None
+
+    def setup(self):
         self.dispatcher = dispatcher.Dispatcher()
         self.server = osc_server.ThreadingOSCUDPServer(('0.0.0.0', 8000), self.dispatcher)
 
-        ip = '172.16.31.191'
-        port = 8000
-        self.client = udp_client.SimpleUDPClient(ip, port)
-
-        self.params = params
         self.setup_listeners()
 
     # noinspection PyTypeChecker
@@ -31,9 +29,9 @@ class OSCServer(threading.Thread):
         self.dispatcher.map('/drums/centroid', self.on_drums_centroid)
         self.dispatcher.set_default_handler(self.on_unknown_message)
 
-    def on_unknown_message(self, addr, *values):
+    @staticmethod
+    def on_unknown_message(addr, *values):
         print(f'Unknown message: addr={addr}', f'values={values}')
-        self.client.send_message(addr, values)
 
     def on_chords_amp(self, _addr, value):
         self.params['chords_amp'].value = value
@@ -63,6 +61,7 @@ class OSCServer(threading.Thread):
         self.params['drums_centroid'].value = value
 
     def run(self):
+        self.setup()
         self.server.serve_forever()
 
     def join(self, **kwargs):

@@ -1,19 +1,4 @@
 import multiprocessing as mp
-from queue import Empty, Full
-
-
-class Edge:
-    def __init__(self):
-        self.__q = mp.Queue(maxsize=1)
-
-    def close(self):
-        self.__q.close()
-
-    def read(self):
-        return self.__q.get(block=True, timeout=0.5)
-
-    def write(self, value):
-        self.__q.put(value, block=True, timeout=0.5)
 
 
 class BaseNode(mp.Process):
@@ -38,24 +23,6 @@ class BaseNode(mp.Process):
 
     def task(self):
         raise NotImplementedError
-
-    def write(self, output, data):
-        try:
-            output.write(data)
-        except Full:
-            print(f'{self.__class__.__name__} skipped writing to {output.__class__.__name__} ')
-            return False
-        else:
-            return True
-
-    def read(self, _input):
-        try:
-            data = _input.read()
-        except Empty:
-            print(f'{self.__class__.__name__} skipped reading from {_input.__class__.__name__}')
-            return
-        else:
-            return data
 
     def join(self, **kwargs) -> None:
         self.exit.set()
