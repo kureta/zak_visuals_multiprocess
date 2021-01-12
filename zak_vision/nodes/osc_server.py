@@ -63,9 +63,8 @@ class OSCServer(threading.Thread):
         self.params['drums_centroid'].value = value
 
     def run(self):
-        print('Starting OSC Server...', end=' ')
+        print('Starting OSC Server...')
         self.setup()
-        print('OSC Server started.')
         self.server.serve_forever()
 
     def join(self, **kwargs):

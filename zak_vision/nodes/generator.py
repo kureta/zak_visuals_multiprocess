@@ -16,7 +16,7 @@ NETWORK = '/home/kureta/Documents/stylegan2-pretrained/metfaces.pkl'
 
 
 def random_orthonormal(n, m=512):
-    h = np.random.randn(n, m)
+    h = np.random.randn(n, m).astype('float32')
     u, s, vh = np.linalg.svd(h, full_matrices=False)
     mat = u @ vh
 
@@ -39,6 +39,7 @@ class Generator(BaseNode):
         # Latent and noise attributes
         self.noise_values = self.noise_vars = self.latents = None
         self.dlatents = self.chroma = None
+        self.origin = self.noise_values2 = None
 
         # Streamer attributes
         self.duration = self.appsrc = self.pipeline = None
@@ -62,14 +63,19 @@ class Generator(BaseNode):
         width = self.Gs.output_shape[2]
         height = self.Gs.output_shape[3]
 
+        print('Building graph for the first time')
+        _ = self.Gs.run(np.zeros((1, dim_noise), dtype='float32'), np.zeros((1, 1), dtype='float32'), **self.Gs_kwargs)
+
         return dim_noise, width, height
 
     def setup_latents(self, dim_noise):
+        self.origin = np.random.randn(1, dim_noise).astype('float32')
         self.noise_vars = [var for name, var in self.Gs.components.synthesis.vars.items() if name.startswith('noise')]
-        self.noise_values = [np.random.randn(*var.shape.as_list()) for var in self.noise_vars]
+        self.noise_values = [np.random.randn(*var.shape.as_list()).astype('float32') for var in self.noise_vars]
+        self.noise_values2 = [np.random.randn(*var.shape.as_list()).astype('float32') for var in self.noise_vars]
         tflib.set_vars({var: self.noise_values[idx] for idx, var in enumerate(self.noise_vars)})
 
-        self.latents = np.random.randn(1, dim_noise)
+        self.latents = np.random.randn(1, dim_noise).astype('float32')
         self.dlatents = self.Gs.components.mapping.run(self.latents, None)
         self.chroma = random_orthonormal(12, dim_noise)
 
@@ -120,11 +126,11 @@ class Generator(BaseNode):
             print("Error: ", e)
 
     def setup(self):
-        print('Loading network checkpoint...', end=' ')
+        print('Loading network checkpoint...')
         dim_noise, width, height = self.setup_network()
-        print('Setting up initial latents and noise...', end=' ')
+        print('Setting up initial latents and noise...')
         self.setup_latents(dim_noise)
-        print('Setting up streamer...', end=' ')
+        print('Setting up streamer...')
         self.setup_streamer(width, height)
         print('Ready!')
 
@@ -146,7 +152,14 @@ class Generator(BaseNode):
         chords_chroma = np.frombuffer(self.params['chords_chroma'], dtype='float32')
         chords_chroma = np.sum(self.chroma * chords_chroma[:, np.newaxis], axis=0)
 
-        # noinspection PyAttributeOutsideInit
+        # drums_amp = self.params['drums_amp'].value
+        # drums_onset = self.params['drums_onset'].value
+        # drums_centroid = self.params['drums_centroid'].value
+        # val = drums_onset * drums_amp * drums_centroid
+        #
+        # nv = [val * n1 + (1 - val) * n2 for n1, n2 in zip(self.noise_values, self.noise_values2)]
+        # tflib.set_vars({var: nv[idx] for idx, var in enumerate(self.noise_vars)})
+
         self.dlatents = self.Gs.components.mapping.run(chords_chroma[np.newaxis, :], None)
         for i in range(18):
             self.dlatents[0, i, :] += chords_chroma

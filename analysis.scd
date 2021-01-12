@@ -3,7 +3,7 @@ s.freeAll;
 s.quit;
 // Analyzer definitions
 // ======================================================================
-~chordAnalDef = SynthDef(\chordAnalysis, { |in=0, rate=30|
+~chordsAnalDef = SynthDef(\chordAnalysis, { |in=0, rate=30|
 	var trig, input, fft, chroma, amp, dissonance, harmonic, percussive;
 
 	trig = Impulse.kr(rate);
@@ -13,11 +13,11 @@ s.quit;
 
 	chroma=Lag.kr(
 		Chromagram.kr(harmonic).squared * 1000.0,
-		3/30
+		0.5
 	);
 	amp = Lag.kr(
 		RMS.kr(input),
-		1/30
+		0.5
 	);
 	dissonance = Lag.kr(
 		SensoryDissonance.kr(fft)
@@ -52,21 +52,26 @@ s.quit;
 });
 
 ~drumsAnalDef = SynthDef(\drumsAnalysis, { |in=2, rate=30|
-	var trig, input, fft, amp, onset, centroid;
+	var trig, input, fft, amp, onset, centroid, release;
 
 	trig = Impulse.kr(rate);
 	input = SoundIn.ar(in);
 	fft = FFT(LocalBuf(2048), input);
+	release = 0.5;
 
 	amp = Lag.kr(
-		RMS.kr(input) * 1000.0,
-		1.0
+		RMS.kr(input) * 250,
+		release
 	);
+	amp = 1;
 	onset = EnvGen.kr(
-		Env.perc(0.034, 1.0, 1.0),
+		Env.perc(0.01, release, 1.0, -2);,
 		Onsets.kr(fft)
 	);
-	centroid = Clip.kr(SpecCentroid.kr(fft).cpsmidi / 127.0);
+	centroid = Lag.kr(
+		Clip.kr(SpecCentroid.kr(fft), 20, 24000) / 2000,
+		release
+	);
 
 	SendReply.kr(trig, '/drums/amp', amp);
 	SendReply.kr(trig, '/drums/onset', onset);
