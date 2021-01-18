@@ -14,7 +14,7 @@ from zak_vision.nodes.base_nodes import BaseNode
 VIDEO_FORMAT = 'RGB'
 GST_VIDEO_FORMAT = GstVideo.VideoFormat.from_string(VIDEO_FORMAT)
 FPS = 30
-NETWORK = '/home/kureta/Documents/stylegan2-pretrained/labeled-berlin-256-000573.pkl'
+NETWORK = '/home/kureta/Documents/stylegan2-pretrained/labeled-berlin-256-000819.pkl'
 
 
 def random_orthonormal_bases(n=512):
