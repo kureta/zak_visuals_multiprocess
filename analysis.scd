@@ -15,7 +15,7 @@ Spec.add(\lag, [0, 1.0]);
 	trig = Impulse.kr(\rate.kr(60));
 	input = SoundIn.ar(in);
 	fft = FFT(LocalBuf(2048), input, hop: 0.5, wintype: 1);
-	mfcc = MFCC.kr(fft, nunmcoeff: 64);
+	mfcc = MFCC.kr(fft, numcoeff: 64);
 	mfcc_trig = Changed.kr(mfcc);
 	# harmonic, percussive = MedianSeparation(fft,FFTTrigger(LocalBuf(2048)),FFTTrigger(LocalBuf(2048)),2048,9);
 	lag = \lag.kr(0.05);
