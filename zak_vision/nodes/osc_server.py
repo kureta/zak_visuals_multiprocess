@@ -22,6 +22,7 @@ class OSCServer(threading.Thread):
     def setup_listeners(self):
         self.dispatcher.map('/chords/amp', self.on_chords_amp)
         self.dispatcher.map('/chords/chroma', self.on_chords_chroma)
+        self.dispatcher.map('/chords/mfcc', self.on_chords_mfcc)
         self.dispatcher.map('/chords/dissonance', self.on_chords_dissonance)
         self.dispatcher.map('/bass/amp', self.on_bass_amp)
         self.dispatcher.map('/bass/has_pitch', self.on_bass_has_pitch)
@@ -39,7 +40,10 @@ class OSCServer(threading.Thread):
         self.params['chords_amp'].value = value
 
     def on_chords_chroma(self, _addr, *value):
-        struct.pack_into('ffffffffffff', self.params[f'chords_chroma'], 0, *value)
+        struct.pack_into(12 * 'f', self.params[f'chords_chroma'], 0, *value)
+
+    def on_chords_mfcc(self, _addr, *value):
+        struct.pack_into(64 * 'f', self.params[f'chords_mfcc'], 0, *value)
 
     def on_chords_dissonance(self, _addr, value):
         self.params['chords_dissonance'].value = value

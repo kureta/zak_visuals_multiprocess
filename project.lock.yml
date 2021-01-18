@@ -7,28 +7,43 @@ dependencies:
   - _openmp_mutex=4.5=1_gnu
   - _tflow_select=2.1.0=gpu
   - absl-py=0.11.0=py37h89c1867_0
+  - appdirs=1.4.4=pyh9f0ad1d_0
   - astor=0.8.1=pyh9f0ad1d_0
+  - audioread=2.1.9=py37h89c1867_0
   - brotlipy=0.7.0=py37hb5d75c8_1001
+  - bzip2=1.0.8=h7f98852_4
   - c-ares=1.17.1=h36c2ea0_0
   - ca-certificates=2020.12.5=ha878542_0
   - cached-property=1.5.1=py_0
-  - certifi=2020.12.5=py37h89c1867_0
+  - certifi=2020.12.5=py37h89c1867_1
   - cffi=1.14.4=py37hc58025e_1
   - chardet=4.0.0=py37h89c1867_0
   - cryptography=3.3.1=py37h7f0c10b_0
   - cudatoolkit=10.0.130=hf841e97_6
   - cudnn=7.6.5.32=ha8d7eb6_1
   - cupti=10.0.130=0
+  - cycler=0.10.0=py_2
+  - decorator=4.4.2=py_0
+  - ffmpeg=4.3.1=hca11adc_2
+  - freetype=2.10.4=h0708190_1
   - gast=0.2.2=py_0
+  - gettext=0.19.8.1=h0b5b191_1005
+  - gmp=6.2.1=h58526e2_0
+  - gnutls=3.6.13=h85f3911_1
   - google-pasta=0.2.0=pyh8c360ce_0
   - grpcio=1.34.0=py37hb27c1af_0
   - h5py=3.1.0=nompi_py37h1e651dc_100
   - hdf5=1.10.6=nompi_h6a2412b_1113
   - idna=2.10=pyh9f0ad1d_0
   - importlib-metadata=3.3.0=py37h89c1867_2
+  - joblib=1.0.0=pyhd8ed1ab_0
+  - jpeg=9d=h36c2ea0_0
   - keras-applications=1.0.8=py_1
   - keras-preprocessing=1.1.0=py_0
+  - kiwisolver=1.3.1=py37h2527ec5_1
   - krb5=1.17.2=h926e7f8_0
+  - lame=3.100=h7f98852_1001
+  - lcms2=2.11=hcbb858e_1
   - ld_impl_linux-64=2.35.1=hea4e1c9_1
   - libblas=3.9.0=6_openblas
   - libcblas=3.9.0=6_openblas
@@ -36,30 +51,55 @@ dependencies:
   - libedit=3.1.20191231=he28a2e2_2
   - libev=4.33=h516909a_1
   - libffi=3.3=h58526e2_2
+  - libflac=1.3.3=h9c3ff4c_1
   - libgcc-ng=9.3.0=h5dbcf3e_17
   - libgfortran-ng=9.3.0=he4bcb1c_17
   - libgfortran5=9.3.0=he4bcb1c_17
   - libgomp=9.3.0=h5dbcf3e_17
   - liblapack=3.9.0=6_openblas
+  - libllvm10=10.0.1=he513fc3_3
   - libnghttp2=1.41.0=h8cfc5f6_2
+  - libogg=1.3.4=h7f98852_1
   - libopenblas=0.3.12=pthreads_h4812303_1
+  - libopus=1.3.1=h7f98852_1
+  - libpng=1.6.37=h21135ba_2
   - libprotobuf=3.14.0=h780b84a_0
+  - librosa=0.8.0=pyh9f0ad1d_0
+  - libsndfile=1.0.30=h9c3ff4c_1
   - libssh2=1.9.0=hab1572f_5
   - libstdcxx-ng=9.3.0=h2ae2ef3_17
+  - libtiff=4.2.0=hdc55705_0
+  - libvorbis=1.3.7=h9c3ff4c_0
+  - libwebp-base=1.1.0=h36c2ea0_3
+  - llvmlite=0.35.0=py37h9d7f4d0_1
+  - lz4-c=1.9.3=h9c3ff4c_0
   - markdown=3.3.3=pyh9f0ad1d_0
+  - matplotlib-base=3.3.3=py37h0c9df89_0
   - ncurses=6.2=h58526e2_4
+  - nettle=3.6=he412f7d_0
+  - numba=0.52.0=py37hdc94413_0
   - numpy=1.19.5=py37haa41c4c_0
+  - olefile=0.46=pyh9f0ad1d_1
+  - openh264=2.1.1=h780b84a_0
   - openssl=1.1.1i=h7f98852_0
   - opt_einsum=3.3.0=py_0
+  - packaging=20.8=pyhd3deb0d_0
+  - pillow=8.1.0=py37he6b4880_1
   - pip=20.3.3=pyhd8ed1ab_0
+  - pooch=1.3.0=pyhd8ed1ab_0
   - protobuf=3.14.0=py37hcd2ae1e_0
   - pycparser=2.20=pyh9f0ad1d_2
   - pyopenssl=20.0.1=pyhd8ed1ab_0
+  - pyparsing=2.4.7=pyh9f0ad1d_0
   - pysocks=1.7.1=py37he5f6b98_2
+  - pysoundfile=0.10.3.post1=pyhd3deb0d_0
   - python=3.7.9=hffdb5ce_0_cpython
+  - python-dateutil=2.8.1=py_0
   - python_abi=3.7=1_cp37m
   - readline=8.0=he28a2e2_2
   - requests=2.25.1=pyhd3deb0d_0
+  - resampy=0.2.2=py_0
+  - scikit-learn=0.24.0=py37h69acf81_0
   - scipy=1.6.0=py37h14a347d_0
   - setuptools=49.6.0=py37he5f6b98_2
   - six=1.15.0=pyh9f0ad1d_0
@@ -70,33 +110,49 @@ dependencies:
   - tensorflow-estimator=1.15.1=pyh2649769_0
   - tensorflow-gpu=1.15.0=h0d30ee6_0
   - termcolor=1.1.0=py_2
+  - threadpoolctl=2.1.0=pyh5ca1d4c_0
   - tk=8.6.10=h21135ba_1
+  - tornado=6.1=py37h5e8e339_1
   - typing_extensions=3.7.4.3=py_0
   - urllib3=1.26.2=pyhd8ed1ab_0
   - werkzeug=0.16.1=py_0
   - wheel=0.36.2=pyhd3deb0d_0
   - wrapt=1.12.1=py37h4abf009_2
+  - x264=1!161.3030=h7f98852_0
   - xz=5.2.5=h516909a_1
   - zipp=3.4.0=py_0
   - zlib=1.2.11=h516909a_1010
+  - zstd=1.4.8=ha95c52a_1
   - pip:
+    - astroid==2.4.2
     - attrs==20.3.0
     - autopep8==1.5.4
     - flake8==3.8.4
     - gstreamer-python==0.0.3.dev18+gc8d4e04
     - iniconfig==1.1.1
+    - isort==5.7.0
+    - jedi==0.17.2
+    - lazy-object-proxy==1.4.3
     - mccabe==0.6.1
-    - packaging==20.8
+    - parso==0.7.1
     - pluggy==0.13.1
     - py==1.10.0
     - py-cpuinfo==7.0.0
     - pycairo==1.20.0
     - pycodestyle==2.6.0
+    - pydocstyle==5.1.1
     - pyflakes==2.2.0
     - pygobject==3.38.0
-    - pyparsing==2.4.7
+    - pylint==2.6.0
     - pytest==6.2.1
     - pytest-benchmark==3.2.3
+    - python-jsonrpc-server==0.4.0
+    - python-language-server==0.36.2
     - python-osc==1.7.4
+    - rope==0.18.0
+    - snowballstemmer==2.0.0
     - toml==0.10.2
+    - typed-ast==1.4.2
+    - ujson==4.0.1
+    - yapf==0.30.0
 prefix: /home/kureta/.conda/envs/zak-visuals-multiprocess

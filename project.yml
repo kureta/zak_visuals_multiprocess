@@ -10,6 +10,7 @@ dependencies:
 - cudatoolkit=10.0
 - pip
 - requests
+- librosa
 - pip:
   - git+https://github.com/jackersson/gstreamer-python.git#egg=gstreamer-python
   - python-osc

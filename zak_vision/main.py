@@ -15,6 +15,7 @@ class App:
         params = {
             'chords_amp': RawValue(ctypes.c_float),
             'chords_chroma': RawArray(ctypes.c_float, 12 * [0.]),
+            'chords_mfcc': RawArray(ctypes.c_float, 64 * [0.]),
             'chords_dissonance': RawValue(ctypes.c_float),
             'bass_amp': RawValue(ctypes.c_float),
             'bass_pitch': RawValue(ctypes.c_float),

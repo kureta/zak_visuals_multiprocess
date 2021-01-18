@@ -4,23 +4,49 @@ from time import sleep
 
 import numpy as np
 from gstreamer import Gst, GstApp, GstContext, GstPipeline, GstVideo, utils  # noqa
+from scipy.linalg import fractional_matrix_power, qr
 
 import dnnlib
 import dnnlib.tflib as tflib
+from zak_vision.audio_classifier import load_model
 from zak_vision.nodes.base_nodes import BaseNode
 
 VIDEO_FORMAT = 'RGB'
 GST_VIDEO_FORMAT = GstVideo.VideoFormat.from_string(VIDEO_FORMAT)
 FPS = 30
-NETWORK = '/home/kureta/Documents/stylegan2-pretrained/metfaces.pkl'
+NETWORK = '/home/kureta/Documents/stylegan2-pretrained/labeled-berlin-256-000573.pkl'
 
 
-def random_orthonormal(n, m=512):
-    h = np.random.randn(n, m).astype('float32')
-    u, s, vh = np.linalg.svd(h, full_matrices=False)
-    mat = u @ vh
+def random_orthonormal_bases(n=512):
+    H = np.random.randn(n, n).astype('float32')
+    Q, R = qr(H)
+    Q = Q @ np.diag(np.sign(np.diag(R)))
+    # Q @ Q.T == (+/-)1
 
-    return mat
+    return Q
+
+
+def random_rotation(n=512):
+    det = -1
+    while det < 0:
+        rotation = random_orthonormal_bases(n)
+        det = np.linalg.det(rotation)
+
+    return rotation
+
+
+def fractional_rotation(rotation, fraction):
+    result = fractional_matrix_power(rotation, fraction).real
+    result /= np.linalg.norm(result, ord=2, axis=1)
+
+    return result
+
+
+def random_orthonormal(m, n=512):
+    bases = random_rotation(n)
+    idx = np.random.randint(0, 512, m)
+
+    return bases[idx]
 
 
 def fraction_to_str(fraction):
@@ -35,11 +61,13 @@ class Generator(BaseNode):
 
         # Network attributes
         self.Gs = self.Gs_kwargs = None
+        self.classifier = None
 
         # Latent and noise attributes
         self.noise_values = self.noise_vars = self.latents = None
         self.dlatents = self.chroma = None
-        self.origin = self.noise_values2 = None
+        self.origin = self.noise_values2 = self.rotation = None
+        self.mfcc_buffer = None
 
         # Streamer attributes
         self.duration = self.appsrc = self.pipeline = None
@@ -56,7 +84,7 @@ class Generator(BaseNode):
             'output_transform': dict(func=tflib.convert_images_to_uint8,
                                      nchw_to_nhwc=True),
             'randomize_noise': False,
-            'truncation_psi': 0,
+            'truncation_psi': 1.0,
         }
 
         dim_noise = self.Gs.input_shape[1]
@@ -64,7 +92,10 @@ class Generator(BaseNode):
         height = self.Gs.output_shape[3]
 
         print('Building graph for the first time')
-        _ = self.Gs.run(np.zeros((1, dim_noise), dtype='float32'), np.zeros((1, 1), dtype='float32'), **self.Gs_kwargs)
+        labels = np.zeros((1, 9), dtype='float32')
+        _ = self.Gs.run(np.zeros((1, dim_noise), dtype='float32'), labels, **self.Gs_kwargs)
+
+        self.classifier = load_model()
 
         return dim_noise, width, height
 
@@ -78,6 +109,10 @@ class Generator(BaseNode):
         self.latents = np.random.randn(1, dim_noise).astype('float32')
         self.dlatents = self.Gs.components.mapping.run(self.latents, None)
         self.chroma = random_orthonormal(12, dim_noise)
+        self.rotation = random_rotation()
+        self.rotation = fractional_rotation(self.rotation, 1/4)
+
+        self.mfcc_buffer = np.zeros((64, 64), dtype='float32')
 
     def setup_streamer(self, width, height):
         fps = Fraction(FPS)
@@ -88,6 +123,8 @@ class Generator(BaseNode):
         # ['plugin_1', 'plugin_2', 'plugin_3'] => plugin_1 ! plugin_2 ! plugin_3
         default_pipeline = utils.to_gst_string([
             f'appsrc caps={caps}',
+            'videoscale method=1 add-borders=false',
+            'video/x-raw,width=1280,height=720',
             'videoconvert',
             'v4l2sink device=/dev/video0 sync=false'
         ])
@@ -149,8 +186,17 @@ class Generator(BaseNode):
             print("Error: ", e)
 
     def task(self):
+        onset = self.params['drums_onset'].value
+        if onset > 0:
+            print(f'onset={onset}')
+            for idx in range(self.chroma.shape[0]):
+                self.chroma[idx] = self.rotation  @ self.chroma[idx].T
+
         chords_chroma = np.frombuffer(self.params['chords_chroma'], dtype='float32')
         chords_chroma = np.sum(self.chroma * chords_chroma[:, np.newaxis], axis=0)
+
+        self.mfcc_buffer[:-1] = self.mfcc_buffer[1:]
+        self.mfcc_buffer[-1] = self.params['chords_mfcc']
 
         # drums_amp = self.params['drums_amp'].value
         # drums_onset = self.params['drums_onset'].value
@@ -160,11 +206,16 @@ class Generator(BaseNode):
         # nv = [val * n1 + (1 - val) * n2 for n1, n2 in zip(self.noise_values, self.noise_values2)]
         # tflib.set_vars({var: nv[idx] for idx, var in enumerate(self.noise_vars)})
 
-        self.dlatents = self.Gs.components.mapping.run(chords_chroma[np.newaxis, :], None)
-        for i in range(18):
+        # TODO: sync wth mfcc data from SuperCollider
+        _labels = self.classifier.predict_proba(self.mfcc_buffer[np.newaxis, :, :, np.newaxis])
+        labels = np.zeros_like(_labels)
+        labels[0, _labels[0].argmax()] = 1
+        self.dlatents = self.Gs.components.mapping.run(chords_chroma[np.newaxis, :], labels)
+        for i in range(14):
             self.dlatents[0, i, :] += chords_chroma
 
         images = self.Gs.components.synthesis.run(self.dlatents, **self.Gs_kwargs)
+        # images = self.Gs.run(chords_chroma[np.newaxis, :], self.labels, **self.Gs_kwargs)
         self.stream_frame(images)
 
     def teardown(self):

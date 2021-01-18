@@ -3,35 +3,47 @@ s.freeAll;
 s.quit;
 // Analyzer definitions
 // ======================================================================
-~chordsAnalDef = SynthDef(\chordAnalysis, { |in=0, rate=30|
-	var trig, input, fft, chroma, amp, dissonance, harmonic, percussive;
 
-	trig = Impulse.kr(rate);
+Spec.add(\rate, [1,60]);
+Spec.add(\scale, [-3, 3]);
+Spec.add(\lag, [0, 1.0]);
+
+
+~chordsAnalDef = SynthDef(\chordsAnalysis, { |in=0|
+	var trig, input, fft, chroma, amp, dissonance, harmonic, percussive, lag, cc, other_trig, mfcc, mfcc_trig;
+
+	trig = Impulse.kr(\rate.kr(60));
 	input = SoundIn.ar(in);
-	fft = FFT(LocalBuf(2048), input);
+	fft = FFT(LocalBuf(2048), input, hop: 0.5, wintype: 1);
+	mfcc = MFCC.kr(fft, nunmcoeff: 64);
+	mfcc_trig = Changed.kr(mfcc);
 	# harmonic, percussive = MedianSeparation(fft,FFTTrigger(LocalBuf(2048)),FFTTrigger(LocalBuf(2048)),2048,9);
+	lag = \lag.kr(0.05);
 
-	chroma=Lag.kr(
-		Chromagram.kr(harmonic).squared * 1000.0,
-		0.5
+	cc = Chromagram.kr(harmonic);
+	other_trig = Changed.kr(cc);
+	chroma=Lag3.kr(
+		cc.sqrt * 10.pow(\scale.kr(2.23)),
+		lag
 	);
-	amp = Lag.kr(
+	amp = Lag3.kr(
 		RMS.kr(input),
-		0.5
+		lag
 	);
 	dissonance = Lag.kr(
 		SensoryDissonance.kr(fft)
 	);
 
 	SendReply.kr(trig, '/chords/amp', amp);
-	SendReply.kr(trig, '/chords/chroma', chroma);
+	SendReply.kr(other_trig, '/chords/chroma', chroma);
 	SendReply.kr(trig, '/chords/dissonance', dissonance);
+	SendReply.kr(mfcc_trig, '/chords/mfcc', mfcc);
 });
 
-~bassAnalDef = SynthDef(\bassAnalysis, { |in=1, rate=30|
+~bassAnalDef = SynthDef(\bassAnalysis, { |in=1|
 	var trig, input, fft, amp, pitch, hasPitch, harmonic, percussive;
 
-	trig = Impulse.kr(rate);
+	trig = Impulse.kr(\rate.kr(40));
 	input = SoundIn.ar(in);
 	// fft = FFT(LocalBuf(2048), input);
 	// # harmonic, percussive = MedianSeparation(fft,FFTTrigger(LocalBuf(2048)),FFTTrigger(LocalBuf(2048)),2048,9);
@@ -51,25 +63,26 @@ s.quit;
 	SendReply.kr(trig, '/bass/has_pitch', hasPitch);
 });
 
-~drumsAnalDef = SynthDef(\drumsAnalysis, { |in=2, rate=30|
-	var trig, input, fft, amp, onset, centroid, release;
+~drumsAnalDef = SynthDef(\drumsAnalysis, { |in=2|
+	var trig, input, fft, amp, onset, centroid, release, onset_;
 
-	trig = Impulse.kr(rate);
+	trig = Impulse.kr(\rate.kr(40));
 	input = SoundIn.ar(in);
 	fft = FFT(LocalBuf(2048), input);
 	release = 0.5;
 
 	amp = Lag.kr(
-		RMS.kr(input) * 250,
-		release
+		RMS.kr(input),
+		1/30
 	);
-	amp = 1;
+	onset_ = Onsets.kr(fft, threshold: 0.3, odftype: 'magsum', mingap: 5);
 	onset = EnvGen.kr(
-		Env.perc(0.01, release, 1.0, -2);,
-		Onsets.kr(fft)
-	);
+		Env.perc(0, 3/40, 1.0, -2),
+		onset_
+		);
+
 	centroid = Lag.kr(
-		Clip.kr(SpecCentroid.kr(fft), 20, 24000) / 2000,
+		Clip.kr(SpecCentroid.kr(fft), 20, 24000).cpsmidi / 127,
 		release
 	);
 
@@ -97,6 +110,11 @@ OSCdef(\on_chords_dissonance, { |msg|
 	~zak.sendMsg("/chords/dissonance", msg[3]);
 }, '/chords/dissonance');
 
+OSCdef(\on_chords_mfcc, { |msg|
+	var mfcc = msg.copyToEnd(3);
+	~zak.sendMsg("/chords/mfcc", *mfcc);
+}, '/chords/mfcc');
+
 // -------------------------- Bass --------------------------------------
 OSCdef(\on_bass_amp, { |msg|
 	~zak.sendMsg("/bass/amp", msg[3]);
@@ -117,6 +135,7 @@ OSCdef(\on_drums_amp, { |msg|
 
 OSCdef(\on_drums_onset, { |msg|
 	~zak.sendMsg("/drums/onset", msg[3]);
+	// msg[3].postln;
 }, '/drums/onset');
 
 OSCdef(\on_drums_centroid, { |msg|
@@ -138,7 +157,11 @@ s.waitForBoot{
 	s.sync;
 
 	// Analyzer instances
-	~chordAnalyzer = Synth(\chordAnalysis);
+	// SynthDescLib.global[\chordsAnalysis].makeWindow;
+	// SynthDescLib.global[\bassAnalysis].makeWindow;
+	// SynthDescLib.global[\drumsAnalysis].makeWindow;
+
+	~chordsAnalyzer = Synth(\chordsAnalysis);
 	~bassAnalyzer = Synth(\bassAnalysis);
 	~drumsAnalyzer = Synth(\drumsAnalysis);
 };
